@@ -372,6 +372,17 @@ pre{background:#fbf8f2;border:1px solid var(--line2);border-radius:10px;padding:
 .modal-card h3{margin:0 0 8px}
 .modal-card p{color:#4a473f;margin:0 0 16px}
 .modal-list{max-height:320px;overflow:auto;margin:8px 0 14px;border:1px solid var(--line2);border-radius:10px;padding:4px}
+/* 程序更新 */
+.upd-steps{display:flex;flex-wrap:wrap;gap:4px 14px;list-style:none;padding:0;margin:10px 0 6px;font-size:13px;color:var(--faint)}
+.upd-steps li:before{content:'○ '}
+.upd-steps li.done{color:var(--muted)} .upd-steps li.done:before{content:'✓ '}
+.upd-steps li.on{color:var(--accent-d);font-weight:600} .upd-steps li.on:before{content:'● '}
+.upd-steps li.err{color:var(--danger);font-weight:600} .upd-steps li.err:before{content:'✕ '}
+.upd-msg{font-size:13px;color:var(--muted)}
+.upd-ok{font-size:13.5px;color:var(--accent-d)}
+.upd-new{background:var(--warn-w);border:1px solid var(--warn-b);border-radius:10px;padding:8px 12px;font-size:13.5px}
+.upd-notes{white-space:pre-wrap;margin-top:6px;color:#4a473f}
+.upd-log{font-size:12px;color:var(--muted);line-height:1.7;margin-top:4px;font-family:ui-monospace,Menlo,Consolas,monospace}
 #toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:#2b2a26;color:#fff;padding:8px 18px;border-radius:10px;font-size:13.5px;z-index:100;box-shadow:0 6px 20px rgba(0,0,0,.2);transition:opacity .2s;pointer-events:none}
 </style>
 </head>
@@ -404,7 +415,8 @@ pre{background:#fbf8f2;border:1px solid var(--line2);border-radius:10px;padding:
 
 <script>
 'use strict';
-const APP_VERSION=3;
+const APP_VERSION=3; // 数据格式版本
+const PROGRAM_VERSION='3.1.0'; // 程序版本：发布新版时改大，写好 更新记录.md，再运行 tools/release.py 更新 latest.json
 const TRASH_DAYS=30;
 /* ================= 教材目录（人教版 2019） ================= */
 const CATALOG_RAW = [
@@ -474,7 +486,7 @@ const README_TEXT=`这是「拾萃 · 高中生物好题本」的数据文件夹
 
 bank.json  全部题目、笔记、tag、试题篮、试卷、回收站和设置（请不要手动修改）
 images/    题目和笔记中的图片
-backups/   每天第一次打开时的自动备份（保留最近 14 天），以及导入前的自动备份
+backups/   每天第一次打开时的自动备份（保留最近 14 天），导入前的自动备份，以及更新前的旧版程序
 
 备份或换电脑：把整个文件夹复制过去，在拾萃里选中它即可。
 `;
@@ -777,7 +789,9 @@ async function openStore(demo){
   Object.assign(ui,{view:'home',sec:null,f:freshFilter(),sf:freshFilter(),tagManage:false,grade:bank.settings.grade||'all',bulk:false,sel:new Set()});
   $('#gate').hidden=true; $('#app').hidden=false; setStatus(demo?'演示模式':'已保存');
   render(true);
+  let updated=null; try{ updated=sessionStorage.getItem('shicui-updated'); sessionStorage.removeItem('shicui-updated'); }catch(e){}
   if(upgraded) toast('已升级到新版数据格式（升级前已自动备份）');
+  else if(updated) toast(`已更新到 v${PROGRAM_VERSION}`);
 }
 async function dailyBackup(){
   const name=`bank-${today()}.json`;
@@ -1376,6 +1390,162 @@ function copyAll(withAns){
   copyHTML(h);
 }
 
+/* ================= 程序更新 ================= */
+/* 在线更新：读取 GitHub 仓库 main 分支上的 latest.json（版本号、sha256、更新内容），下载新版 拾萃.html，
+   校验 sha256 后写入正在使用的 拾萃.html（第一次更新时由用户选中这个文件，之后记住）。
+   GitHub 连不上时改用国内加速地址：这时要求至少两个来源的 latest.json 一致，下载的文件也必须通过 sha256 校验。
+   只替换 拾萃.html 这一个文件；旧版程序先备份到数据文件夹的 backups 里，数据文件夹的其他内容不受影响。 */
+const UPDATE_RAW='https://raw.githubusercontent.com/Rowinrain/shicui/main/';
+const UPDATE_MIRRORS=['https://ghfast.top/','https://gh-proxy.com/','https://ghproxy.net/','https://gh.llkk.cc/'];
+const PROGRAM_FILE='拾萃.html';
+function updateSources(){
+  return [{name:'GitHub',url:p=>UPDATE_RAW+encodeURIComponent(p)},
+    {name:'jsDelivr',url:p=>'https://cdn.jsdelivr.net/gh/Rowinrain/shicui@main/'+encodeURIComponent(p)},
+    ...UPDATE_MIRRORS.map(m=>({name:new URL(m).host,url:p=>m+UPDATE_RAW+encodeURIComponent(p)}))];
+}
+function cmpVer(a,b){ const x=String(a).split('.').map(n=>+n||0), y=String(b).split('.').map(n=>+n||0);
+  for(let i=0;i<Math.max(x.length,y.length);i++){ const d=(x[i]||0)-(y[i]||0); if(d) return d>0?1:-1; } return 0; }
+function programVersionOf(text){ const m=/const PROGRAM_VERSION='([\d.]+)'/.exec(text||''); return m&&/<title>拾萃/.test(text)?m[1]:null; }
+function netError(e,ms){ if(e.name==='AbortError') return `连接超时（${ms/1000} 秒）`; if(e instanceof TypeError) return '连接失败（网络不通或被拦截）'; return e.message; }
+async function fetchTimed(url,ms,asText){
+  const ac=new AbortController(); const t=setTimeout(()=>ac.abort(),ms);
+  try{ const r=await fetch(url+(url.includes('?')?'&':'?')+'t='+Date.now(),{cache:'no-store',signal:ac.signal});
+    if(!r.ok) throw new Error(r.status===404?'服务器上找不到这个文件（404）':'服务器返回错误（'+r.status+'）');
+    return asText?await r.text():await r.arrayBuffer(); }
+  catch(e){ throw new Error(netError(e,ms)); }
+  finally{ clearTimeout(t); }
+}
+async function sha256Hex(buf){ const h=await crypto.subtle.digest('SHA-256',buf); return [...new Uint8Array(h)].map(b=>b.toString(16).padStart(2,'0')).join(''); }
+function parseLatest(text){
+  let d; try{ d=JSON.parse(text); }catch(e){ throw new Error('更新信息格式不对'); }
+  if(d.format!=='shicui-latest'||!/^[\d.]+$/.test(d.version||'')||!/^[0-9a-f]{64}$/.test(d.sha256||'')) throw new Error('更新信息格式不对');
+  return d;
+}
+/* 取更新信息：GitHub 直连成功就用它；否则需要至少两个加速来源给出相同的版本号和 sha256。 */
+async function fetchLatest(log){
+  const src=updateSources(), ok=[];
+  try{ const d=parseLatest(await fetchTimed(src[0].url('latest.json'),10000,true)); log(`从 GitHub 获取更新信息：最新版本 v${d.version}`); return {info:d,via:'GitHub',order:src}; }
+  catch(e){ log(`GitHub：${e.message}，改用国内加速地址`); }
+  const rest=src.slice(1);
+  const results=await Promise.all(rest.map(async s=>{ try{ const d=parseLatest(await fetchTimed(s.url('latest.json'),12000,true)); log(`${s.name}：最新版本 v${d.version}`); return {s,d}; }catch(e){ log(`${s.name}：${e.message}`); return null; } }));
+  for(const r of results) if(r) ok.push(r);
+  const groups=new Map(); ok.forEach(r=>{ const k=r.d.version+'|'+r.d.sha256; if(!groups.has(k)) groups.set(k,[]); groups.get(k).push(r); });
+  const best=[...groups.values()].filter(g=>g.length>=2).sort((a,b)=>cmpVer(b[0].d.version,a[0].d.version))[0];
+  if(best){ const names=best.map(r=>r.s.name); log(`${names.join('、')} 的更新信息一致`); return {info:best[0].d,via:names.join('、'),order:[...best.map(r=>r.s),...src.filter(s=>!names.includes(s.name))]}; }
+  if(ok.length===1) throw new Error('只有一个加速地址能连上，无法核对更新信息。为安全起见没有继续，请稍后再试，或用“选择新版 拾萃.html 更新”。');
+  if(ok.length) throw new Error('各个加速地址给出的更新信息不一致，为安全起见没有继续，请稍后再试。');
+  throw new Error('连不上 GitHub，也连不上国内加速地址。请检查网络后再试，或用“选择新版 拾萃.html 更新”。');
+}
+async function downloadProgram(latest,log,stage){
+  for(const s of latest.order){
+    let buf; stage('download',`正在从 ${s.name} 下载新版程序…`);
+    try{ buf=await fetchTimed(s.url(latest.info.file||PROGRAM_FILE),60000,false); }catch(e){ log(`${s.name} 下载失败：${e.message}`); continue; }
+    stage('verify','正在校验 sha256…');
+    if(await sha256Hex(buf)!==latest.info.sha256){ log(`${s.name} 下载的文件 sha256 校验不通过（文件不完整、版本不同或被修改），已丢弃`); continue; }
+    const text=new TextDecoder().decode(buf);
+    if(programVersionOf(text)!==latest.info.version){ log(`${s.name} 下载的文件版本号不对，已丢弃`); continue; }
+    log(`从 ${s.name} 下载完成（${(buf.byteLength/1024).toFixed(0)} KB），sha256 校验通过`);
+    return text;
+  }
+  throw new Error('所有地址都没能下载到通过校验的新版程序，请稍后再试。');
+}
+/* 正在使用的 拾萃.html 文件：第一次更新时选中，之后记在浏览器里 */
+function programPathHint(){ if(location.protocol!=='file:') return ''; let p=decodeURIComponent(location.pathname); if(/^\/[A-Za-z]:\//.test(p)) p=p.slice(1).replace(/\//g,'\\'); return p; }
+async function programHandle(forcePick){
+  let h=null;
+  if(!forcePick){ try{ h=await idbGet('program'); }catch(e){} }
+  if(!h){
+    const path=programPathHint();
+    const ok=await choose('选择正在使用的 拾萃.html',`更新需要替换正在使用的 拾萃.html 文件。请在接下来的窗口里找到并选中它，之后再更新就不用再选了。${path?`\n\n它的位置是：\n${path}`:''}\n\n只会替换这一个文件，数据文件夹不受影响。`,[{label:'取消',value:false},{label:'去选择',value:true,primary:true}]);
+    if(!ok) return null;
+    try{ [h]=await window.showOpenFilePicker({id:'shicui-program',types:[{description:'拾萃程序',accept:{'text/html':['.html']}}]}); }
+    catch(e){ if(e.name!=='AbortError') alert('无法选择文件：'+e.message); return null; }
+    const text=await (await h.getFile()).text(), v=programVersionOf(text);
+    if(!v){ alert('选中的文件不是拾萃程序，请重新选择 拾萃.html。'); return null; }
+    if(v!==PROGRAM_VERSION){ const go=await choose('版本不一致',`选中的文件是 v${v}，而现在打开的是 v${PROGRAM_VERSION}，可能不是正在使用的那一个 拾萃.html。\n\n仍然更新这个文件吗？`,[{label:'重新选择',value:false,primary:true},{label:'仍然更新它',value:true}]); if(!go) return null; }
+  }
+  let p='denied'; try{ p=await h.queryPermission({mode:'readwrite'}); if(p!=='granted') p=await h.requestPermission({mode:'readwrite'}); }catch(e){}
+  if(p!=='granted'){ toast('没有获得修改 拾萃.html 的权限，没有更新'); return null; }
+  try{ await idbSet('program',h); }catch(e){}
+  return h;
+}
+async function installProgram(h,text,newVer,log,stage){
+  stage('backup','正在备份旧版程序…');
+  await flush();
+  const old=await (await h.getFile()).text();
+  const stamp=new Date().toISOString().slice(0,19).replace(/[-:]/g,'').replace('T','-');
+  const bk=`拾萃-v${programVersionOf(old)||PROGRAM_VERSION}-${stamp}.html`;
+  await store.writeBackup(bk,old); log(`旧版程序已备份到数据文件夹的 backups/${bk}`);
+  stage('install','正在替换 拾萃.html…');
+  const w=await h.createWritable(); await w.write(text); await w.close();
+  const back=await (await h.getFile()).text();
+  if(back!==text){ const w2=await h.createWritable(); await w2.write(old); await w2.close(); throw new Error('写入后核对不一致，已恢复旧版程序。'); }
+  log(`已更新到 v${newVer}`);
+  try{ sessionStorage.setItem('shicui-updated',newVer); }catch(e){}
+  stage('restart','更新完成，正在重新打开…');
+  setTimeout(()=>location.reload(),1200);
+}
+const UPD_STAGES={online:[['program','确认程序文件'],['manifest','获取更新信息'],['download','下载新版程序'],['verify','校验 sha256'],['backup','备份旧版程序'],['install','替换 拾萃.html'],['restart','重新打开']],
+  file:[['program','确认程序文件'],['check','检查新版文件'],['backup','备份旧版程序'],['install','替换 拾萃.html'],['restart','重新打开']]};
+let updBusy=false;
+function updProgress(kind){
+  const box=$('#updProgress'); const lines=[]; let cur=UPD_STAGES[kind][0][0], msg='', err='';
+  const draw=()=>{ if(!box) return; const keys=UPD_STAGES[kind].map(s=>s[0]), ci=keys.indexOf(cur);
+    box.hidden=false;
+    box.innerHTML=`<ol class="upd-steps">${UPD_STAGES[kind].map(([k,n],i)=>`<li class="${i<ci||(cur==='restart'&&!err)?'done':i===ci?(err?'err':'on'):''}">${n}</li>`).join('')}</ol>
+      ${err?`<div class="warn">更新没有完成：${esc(err)}</div>`:`<div class="upd-msg">${esc(msg)}</div>`}
+      ${lines.length?`<details ${err?'open':''}><summary class="hint">详细过程</summary><div class="upd-log">${lines.map(esc).join('<br>')}</div></details>`:''}`; };
+  draw();
+  return {log:t=>{ lines.push(new Date().toTimeString().slice(0,8)+'  '+t); draw(); },
+    stage:(k,m)=>{ cur=k; msg=m||''; draw(); },
+    fail:e=>{ err=e.message||String(e); draw(); }};
+}
+async function checkUpdate(){
+  if(updBusy) return; const res=$('#updRes');
+  res.innerHTML='<div class="upd-msg">正在检查…（GitHub 连不上时会自动改用国内加速地址，可能要等十几秒）</div>';
+  const lines=[];
+  try{
+    const latest=await fetchLatest(t=>lines.push(t));
+    const via=latest.via!=='GitHub'?`<div class="hint">（GitHub 直连失败，已通过 ${esc(latest.via)} 获取）</div>`:'';
+    if(cmpVer(latest.info.version,PROGRAM_VERSION)<=0){ res.innerHTML=`<div class="upd-ok">已经是最新版本（v${esc(PROGRAM_VERSION)}）。</div>${via}`; return; }
+    res.innerHTML=`<div class="upd-new">发现新版本 <b>v${esc(latest.info.version)}</b>${latest.info.date?`（${esc(latest.info.date)}）`:''}，当前是 v${esc(PROGRAM_VERSION)}。
+      ${latest.info.notes?`<div class="upd-notes">${esc(latest.info.notes)}</div>`:''}${via}</div>
+      <div class="btn-row" style="margin-top:8px"><button class="btn primary" id="updGo">下载并更新</button></div>`;
+    $('#updGo').onclick=()=>runOnlineUpdate(latest);
+  }catch(e){ res.innerHTML=`<div class="warn">${esc(e.message)}</div>${lines.length?`<details><summary class="hint">详细过程</summary><div class="upd-log">${lines.map(esc).join('<br>')}</div></details>`:''}`; }
+}
+async function runOnlineUpdate(latest){
+  if(updBusy) return;
+  const h=await programHandle(false); if(!h) return; // 先在点击时拿到权限，下载完成后再写入
+  updBusy=true; $('#updRes').innerHTML=''; const p=updProgress('online');
+  try{
+    p.log('程序文件：'+h.name); p.log(`最新版本 v${latest.info.version}（更新信息来自 ${latest.via}）`);
+    const text=await downloadProgram(latest,p.log,p.stage);
+    await installProgram(h,text,latest.info.version,p.log,p.stage);
+  }catch(e){ console.error(e); p.log('失败：'+(e.message||e)); p.fail(e); updBusy=false; }
+}
+async function updateFromFile(){
+  if(updBusy) return;
+  const f=await pickFile('.html,text/html'); if(!f) return;
+  const text=await f.text(), v=programVersionOf(text);
+  if(!v){ alert('这个文件不是拾萃程序。请选择从 GitHub 下载的新版 拾萃.html。'); return; }
+  const c=cmpVer(v,PROGRAM_VERSION);
+  const ok=await choose(c>0?'用这个文件更新':'不是更新的版本',c>0?`选中的文件是 v${v}，当前是 v${PROGRAM_VERSION}。开始更新吗？`:`选中的文件是 v${v}，${c===0?'和当前版本相同':'比当前版本 v'+PROGRAM_VERSION+' 还旧'}。仍然用它替换吗？`,[{label:'取消',value:false},{label:c>0?'开始更新':'仍然替换',value:true,primary:c>0}]);
+  if(!ok) return;
+  const h=await programHandle(false); if(!h) return;
+  updBusy=true; $('#updRes').innerHTML=''; const p=updProgress('file');
+  try{ p.stage('check','正在检查新版文件…'); p.log(`新版文件：${f.name}（v${v}）`); await installProgram(h,text,v,p.log,p.stage); }
+  catch(e){ console.error(e); p.log('失败：'+(e.message||e)); p.fail(e); updBusy=false; }
+}
+function updatePanelHTML(){
+  const path=programPathHint();
+  return `<div class="panel"><div class="panel-title">程序更新 <span class="hint">更新只替换 拾萃.html，数据文件夹不受影响</span></div>
+    <p style="margin:0 0 6px">当前版本：<b>v${PROGRAM_VERSION}</b>${path?`<span class="hint">　程序文件：${esc(path)}</span>`:''}</p>
+    <div class="btn-row"><button class="btn primary" data-act="updcheck">检查更新</button><button class="btn" data-act="updfile">选择新版 拾萃.html 更新</button><button class="btn ghost small" data-act="updpick">重新选择程序文件</button></div>
+    <div id="updRes" style="margin-top:8px"></div><div id="updProgress" hidden></div>
+    <p class="hint" style="margin:8px 0 0">“检查更新”需要联网，会从 GitHub 获取新版（连不上时自动改用国内加速地址，并核对 sha256 校验值）。第一次更新时需要选中正在使用的 拾萃.html，之后会记住。更新前，旧版程序会备份到数据文件夹的 backups 里。没有网络时，可以把新版 拾萃.html 拷到电脑上，再点“选择新版 拾萃.html 更新”。</p></div>`;
+}
+
 /* ---------- 设置 ---------- */
 function renderSettings(){
   const s=bank.settings;
@@ -1385,6 +1555,7 @@ function renderSettings(){
     <p style="margin:0 0 6px">当前文件夹：<b>${esc(store.name)}</b></p>
     <p class="hint" style="margin:0 0 10px">题目和笔记在 bank.json，图片在 images 文件夹；每天第一次打开时会在 backups 里自动备份一份（保留最近 14 天），每次导入前也会自动备份。整个文件夹就是完整的题库，复制它就等于备份或迁移。</p>
     <div class="btn-row"><button class="btn" data-act="changefolder">更换文件夹</button><span class="hint">更换后会读取新文件夹里的题库。想把现有题库搬过去，请先在访达里复制整个文件夹，再选中复制后的文件夹。</span></div></div>
+  ${updatePanelHTML()}
   <div class="panel"><div class="panel-title">默认分值 <span class="hint">题目加入试题篮时使用，之后可以逐题修改</span></div>
     <div class="set-grid">${scores.map(([k,l])=>`<label>${l}<span><input type="number" min="0" step="0.5" data-set="score.${k}" value="${s.score[k]}"> 分</span></label>`).join('')}</div></div>
   <div class="panel"><div class="panel-title">默认难度系数 <span class="hint">录题选择难度等级时自动填入，不会改动已有题目</span></div>
@@ -1657,6 +1828,9 @@ main.addEventListener('click',async e=>{
     case 'exporttext': exportText(); break;
     case 'import': restoreOrImport(); break;
     case 'cleanimg': cleanImages(); break;
+    case 'updcheck': checkUpdate(); break;
+    case 'updfile': updateFromFile(); break;
+    case 'updpick': if(await programHandle(true)) toast('已记住程序文件'); break;
   }
 });
 main.addEventListener('mousedown',e=>{ if(e.target.closest('.ac-item')) e.preventDefault(); });

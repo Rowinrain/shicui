@@ -1,0 +1,15 @@
+# 检查 latest.json 是否和 拾萃.html、更新记录.md 一致。
+# main 分支上的 latest.json 就是程序内“检查更新”读取的更新信息，不一致会导致更新失败（sha256 校验不通过）。
+name: 检查更新信息
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 tools/release.py --check
