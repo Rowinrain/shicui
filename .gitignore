@@ -1,0 +1,11 @@
+# 题目数据不进入仓库
+bank.json
+images/
+backups/
+work/
+*导入*.json
+*检查明细*.json
+*.docx
+
+__pycache__/
+.DS_Store
