@@ -258,6 +258,46 @@ mark{background:#fbeaa0;color:inherit;padding:0 1px;border-radius:2px}
 .sc-total{font-weight:600;color:var(--text)}
 .b-btns{display:flex;gap:2px}
 
+/* ---------- 打印 ---------- */
+#printArea{display:none}
+@media print{
+  body.printing>*:not(#printArea){display:none!important}
+  html,body.printing{height:auto;background:#fff}
+  body.printing #printArea{display:block}
+}
+.pt{font-family:"Songti SC","STSong","SimSun","Times New Roman",serif;font-size:var(--pt-size);line-height:1.75;color:#000}
+#printArea{--pt-size:12pt}
+.pt .rendered{font-size:var(--pt-size);line-height:1.75}
+.pt .rendered img{max-width:100%;max-height:120mm}
+.pt .rendered td,.pt .rendered th{border-color:#000}
+.pt .blank{text-decoration-color:#000}
+.pt-break{break-before:page}
+.pt-head{text-align:center;margin-bottom:10pt}
+.pt-title{font-size:calc(var(--pt-size) * 1.45);font-weight:700;letter-spacing:.05em}
+.pt-info{margin-top:4pt}
+.pt-group{font-weight:700;margin:10pt 0 4pt;break-after:avoid}
+.pt-q{display:flex;margin:0 0 6pt;break-inside:avoid}
+.pt-q.long{break-inside:auto}
+.pt-no{flex:none;min-width:1.6em}
+.pt-body{flex:1;min-width:0}
+.pt-sc{float:right;font-size:.9em}
+.pt-space{height:5.5em}
+.pt-ans{margin:0 0 4pt;break-inside:avoid}
+#printArea.a3 .pt-cols{column-count:2;column-gap:14mm;column-rule:1px solid #888}
+
+/* ---------- 回收站 / 试卷 ---------- */
+.titem,.paper{display:flex;gap:14px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 16px;margin-bottom:10px;box-shadow:var(--shadow)}
+.ti-main,.pp-main{flex:1;min-width:0}
+.ti-meta{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:4px}
+.ti-text{line-height:1.7}
+.pp-name{font-family:var(--serif);font-size:17px;font-weight:600}
+.badge.used{background:#efeae0;color:#6b5a3a}
+.dup-item{border:1px solid var(--line2);border-radius:10px;padding:8px 10px;margin-bottom:6px;font-size:13px;line-height:1.7}
+.dup-item .hint{display:block}
+.form-row{display:flex;align-items:center;gap:10px;margin:8px 0;font-size:13.5px}
+.form-row>span:first-child{width:64px;color:var(--muted);flex:none}
+.form-row input:not([type=checkbox]){flex:1}
+
 /* ---------- 批量编辑 ---------- */
 .bulkbar{position:sticky;bottom:14px;z-index:20;margin-top:14px;background:#2b2a26;color:#fff;border-radius:14px;padding:10px 14px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;box-shadow:0 10px 30px rgba(0,0,0,.25)}
 .bulkbar .btn{background:#3d3b35;border-color:#55524a;color:#fff}
@@ -344,6 +384,7 @@ pre{background:#fbf8f2;border:1px solid var(--line2);border-radius:10px;padding:
     <div class="top-search"><input id="topSearch" placeholder="全库搜索：输入关键词后按回车"></div>
     <span class="sp"></span>
     <span id="saveStatus"></span>
+    <button class="btn ghost" data-nav="papers">试卷</button>
     <button class="btn ghost" data-nav="basket">试题篮<span class="count" id="basketCount">0</span></button>
     <button class="btn ghost" data-nav="settings">设置</button>
   </header>
@@ -356,10 +397,13 @@ pre{background:#fbf8f2;border:1px solid var(--line2);border-radius:10px;padding:
 <div id="modal" hidden></div>
 <div id="toast" hidden></div>
 <datalist id="srcList"></datalist>
+<div id="printArea"></div>
+<style id="pageStyle"></style>
 
 <script>
 'use strict';
-const APP_VERSION=2;
+const APP_VERSION=3;
+const TRASH_DAYS=30;
 /* ================= 教材目录（人教版 2019） ================= */
 const CATALOG_RAW = [
  ['必修1 分子与细胞','必修1',[
@@ -426,7 +470,7 @@ const SYMS=['♀','♂','×','∶','→','←','⇌','↑','↓','°','℃','μ'
  .concat([['F₁','F<sub>1</sub>',1],['F₂','F<sub>2</sub>',1],['CO₂','CO<sub>2</sub>',1],['O₂','O<sub>2</sub>',1],['H₂O','H<sub>2</sub>O',1],['Ca²⁺','Ca<sup>2+</sup>',1],['Na⁺','Na<sup>+</sup>',1],['K⁺','K<sup>+</sup>',1],['Cl⁻','Cl<sup>-</sup>',1],['Xᴮ','X<sup>B</sup>',1],['Xᵇ','X<sup>b</sup>',1]]);
 const README_TEXT=`这是「拾萃 · 高中生物好题本」的数据文件夹。
 
-bank.json  全部题目、笔记、tag、试题篮和设置（请不要手动修改）
+bank.json  全部题目、笔记、tag、试题篮、试卷、回收站和设置（请不要手动修改）
 images/    题目和笔记中的图片
 backups/   每天第一次打开时的自动备份（保留最近 14 天），以及导入前的自动备份
 
@@ -588,27 +632,68 @@ function normQ(q){
 }
 function normalizeBank(d){
   const settings=clone(DEFAULT_SETTINGS);
-  if(d.settings){ Object.assign(settings.coef,d.settings.coef||{}); Object.assign(settings.score,d.settings.score||{}); if(d.settings.grade) settings.grade=d.settings.grade; }
-  bank={version:APP_VERSION,settings,topics:[],tags:[],questions:[],notes:[],basket:[]};
+  if(d.settings){ Object.assign(settings.coef,d.settings.coef||{}); Object.assign(settings.score,d.settings.score||{}); if(d.settings.grade) settings.grade=d.settings.grade; if(d.settings.print&&typeof d.settings.print==='object') settings.print=d.settings.print; }
+  bank={version:APP_VERSION,settings,topics:[],tags:[],questions:[],notes:[],basket:[],papers:[],basketPaper:'',trash:[]};
   bank.topics=(d.topics||[]).filter(t=>t&&t.id&&t.name);
   applyTopics();
   bank.tags=(d.tags||[]).filter(t=>t&&t.id&&SECTIONS[t.sec]);
   bank.questions=(d.questions||[]).map(normQ);
-  bank.notes=(d.notes||[]).filter(n=>n&&n.id&&SECTIONS[n.sec]).map(n=>({id:n.id,sec:n.sec,title:n.title||'',body:n.body||'',created:n.created||Date.now(),updated:n.updated||Date.now()}));
+  bank.notes=(d.notes||[]).filter(n=>n&&n.id&&SECTIONS[n.sec]).map(normNote);
   bank.basket=(d.basket||[]).filter(e=>e&&e.qid);
+  bank.papers=(d.papers||[]).filter(p=>p&&p.id).map(normPaper);
+  bank.basketPaper=bank.papers.some(p=>p.id===d.basketPaper)?d.basketPaper:'';
+  bank.trash=(d.trash||[]).filter(t=>t&&t.item&&t.item.id&&(t.kind==='q'||t.kind==='n')).map(t=>({kind:t.kind,deleted:t.deleted||Date.now(),item:t.kind==='q'?normQ(t.item):normNote(t.item,true)}));
+  useMap=null;
   return bank;
 }
+function normNote(n,loose){ return {id:n.id||uid(),sec:SECTIONS[n.sec]?n.sec:(loose?'1-1-1':n.sec),title:n.title||'',body:n.body||'',created:n.created||Date.now(),updated:n.updated||Date.now()}; }
+function normEntry(e){ const o={qid:e.qid,score:Math.max(0,+e.score||0)}; if(Array.isArray(e.subScores)) o.subScores=e.subScores.map(v=>Math.max(0,+v||0)); return o; }
+function normPaper(p){ return {id:p.id,name:String(p.name||'未命名试卷'),date:/^\d{4}-\d{2}-\d{2}$/.test(p.date||'')?p.date:'',created:p.created||Date.now(),updated:p.updated||Date.now(),entries:(p.entries||[]).filter(e=>e&&e.qid).map(normEntry)}; }
+/* 试卷使用记录：题目 id → 用过它的试卷 */
+let useMap=null;
+function usage(){
+  if(useMap) return useMap; useMap=new Map();
+  for(const p of bank.papers) for(const e of p.entries){ if(!useMap.has(e.qid)) useMap.set(e.qid,[]); const a=useMap.get(e.qid); if(!a.includes(p)) a.push(p); }
+  return useMap;
+}
+const usedIn=id=>usage().get(id)||[];
 function qText(q){
   const parts=[q.stem,...q.options,...q.judges.map(j=>j.text),q.answer,q.analysis,q.extra,q.note,...q.subs.flatMap(s=>[s.stem,s.answer,s.analysis])].map(htmlToText);
   parts.push(q.source||'',q.qno||''); q.tags.forEach(id=>{const t=tagById.get(id); if(t) parts.push(t.name);});
   return parts.join('\n').toLowerCase();
 }
 function qSecs(q){ const s=new Set([q.primary]); q.tags.forEach(id=>{const t=tagById.get(id); if(t) s.add(t.sec);}); return s; }
-function indexQ(q){ qIndex.set(q.id,{q,text:qText(q),secs:qSecs(q)}); }
+function indexQ(q){ qIndex.set(q.id,{q,text:qText(q),secs:qSecs(q),bg:bigrams(dupText(q))}); }
+/* ---------- 查重：题干 + 选项 + 判断 + 小问的文字，按相邻两字的重合程度比较 ---------- */
+const DUP_MIN=0.8;
+function dupText(q){ return htmlToText([q.stem,...q.options,...q.judges.map(j=>j.text),...q.subs.map(s=>s.stem)].join('|')).toLowerCase().replace(/[\s\u3000\u00a0，。、；：？！“”‘’（）()【】《》<>,.;:?!"'\-—_…·|]/g,''); }
+function bigrams(t){ const s=new Set(); for(let i=0;i<t.length-1;i++) s.add(t.slice(i,i+2)); return s; }
+function dice(a,b){ const [x,y]=a.size<b.size?[a,b]:[b,a]; if(x.size<6||x.size/y.size<0.66) return 0; let n=0; for(const g of x) if(y.has(g)) n++; return 2*n/(a.size+b.size); }
+function findSimilar(q,extra){
+  const bg=bigrams(dupText(q)); if(bg.size<6) return [];
+  const out=[]; const test=(o,obg)=>{ if(o.id===q.id) return; const v=dice(bg,obg); if(v>=DUP_MIN) out.push({q:o,sim:v}); };
+  for(const x of qIndex.values()) test(x.q,x.bg);
+  (extra||[]).forEach(x=>test(x.q,x.bg));
+  return out.sort((a,b)=>b.sim-a.sim).slice(0,3);
+}
+function qSnippet(q,n=80){ const t=htmlToText([q.stem,...q.judges.map(j=>j.text)].join(' ')).replace(/\s+/g,' ').trim(); return t.length>n?t.slice(0,n)+'…':(t||'（无题干）'); }
+function dupDialog(matches){ return new Promise(res=>{
+  const m=$('#modal');
+  m.innerHTML=`<div class="modal-card" style="width:560px"><h3>题库里可能已有这道题</h3><p>下面的题和这道题的文字高度相似：</p>
+    <div class="modal-list">${matches.map(x=>`<div class="dup-item"><b>相似度 ${Math.round(x.sim*100)}%</b>　${esc(qSnippet(x.q))}<span class="hint">${esc(SECTIONS[x.q.primary].path)}${x.q.source?' · '+esc(sourceText(x.q)):''}</span></div>`).join('')}</div>
+    <div class="btn-row" style="justify-content:flex-end"><button class="btn primary" data-v="0">返回修改</button><button class="btn" data-v="1">仍然保存</button></div></div>`;
+  m.hidden=false; m.onclick=e=>{ const b=e.target.closest('[data-v]'); if(!b) return; m.hidden=true; res(b.dataset.v==='1'); };
+}); }
 function reindexAll(){ applyTopics(); tagById=new Map(bank.tags.map(t=>[t.id,t])); qIndex=new Map(); bank.questions.forEach(indexQ); updateSrcList(); }
 const qById=id=>qIndex.get(id)?.q;
 function tagUsage(){ const m={}; bank.questions.forEach(q=>q.tags.forEach(t=>m[t]=(m[t]||0)+1)); return m; }
 function allHtml(q){ return [q.stem,...q.options,...q.judges.map(j=>j.text),q.answer,q.analysis,q.extra,q.note,...q.subs.flatMap(s=>[s.stem,s.answer,s.analysis])].join(' '); }
+function usedImageNames(){ // 题目、笔记以及回收站里的内容用到的图片
+  const s=new Set(); const add=h=>collectImgNames(h).forEach(n=>s.add(n));
+  bank.questions.forEach(q=>add(allHtml(q))); bank.notes.forEach(n=>add(n.body));
+  bank.trash.forEach(t=>add(t.kind==='q'?allHtml(t.item):t.item.body));
+  return s;
+}
 function collectImgNames(html){ return [...html.matchAll(/data-img="([^"]+)"/g)].map(m=>m[1]); }
 function isMissed(q){ return q.missed||!!q.wrong||q.judges.some(j=>j.miss)||/class="blank miss"/.test(q.stem+q.answer+q.subs.map(s=>s.stem).join('')); }
 const inGrade=q=>ui.grade==='all'||q.grade===ui.grade;
@@ -617,7 +702,7 @@ function updateSrcList(){ const s=new Set(bank.questions.map(q=>q.source).filter
 /* ---------- 保存 ---------- */
 let saveTimer=null, dirty=false, saving=Promise.resolve();
 function setStatus(t,err){ const s=$('#saveStatus'); s.textContent=t; s.classList.toggle('err',!!err); }
-function persist(){ dirty=true; setStatus('保存中…'); clearTimeout(saveTimer); saveTimer=setTimeout(flush,250); }
+function persist(){ useMap=null; dirty=true; setStatus('保存中…'); clearTimeout(saveTimer); saveTimer=setTimeout(flush,250); }
 function flush(){
   if(!dirty) return saving; dirty=false; const text=JSON.stringify(bank);
   saving=saving.then(()=>store.writeText('bank.json',text)).then(()=>{ if(!dirty) setStatus('已保存'); })
@@ -684,7 +769,8 @@ async function openStore(demo){
   }
   reindexAll();
   bank.basket=bank.basket.filter(e=>qIndex.has(e.qid));
-  if(!text||upgraded) await store.writeText('bank.json',JSON.stringify(bank));
+  const purged=purgeTrash();
+  if(!text||upgraded||purged) await store.writeText('bank.json',JSON.stringify(bank));
   try{ await dailyBackup(); }catch(e){ console.warn(e); }
   Object.assign(ui,{view:'home',sec:null,f:freshFilter(),sf:freshFilter(),tagManage:false,grade:bank.settings.grade||'all',bulk:false,sel:new Set()});
   $('#gate').hidden=true; $('#app').hidden=false; setStatus(demo?'演示模式':'已保存');
@@ -698,10 +784,42 @@ async function dailyBackup(){
   for(const n of list.slice(0,Math.max(0,list.length-14))) await store.deleteBackup(n);
 }
 
+/* ================= 回收站 ================= */
+function purgeTrash(){ const cut=Date.now()-TRASH_DAYS*864e5, n=bank.trash.length; bank.trash=bank.trash.filter(t=>t.deleted>=cut); return bank.trash.length!==n; }
+function trashQuestion(q){
+  bank.questions=bank.questions.filter(x=>x.id!==q.id); qIndex.delete(q.id); removeFromBasket(q.id); ui.sel.delete(q.id);
+  bank.trash.unshift({kind:'q',deleted:Date.now(),item:q});
+}
+function trashNote(n){ bank.notes=bank.notes.filter(x=>x.id!==n.id); bank.trash.unshift({kind:'n',deleted:Date.now(),item:n}); }
+function restoreTrash(i){
+  const t=bank.trash[i]; if(!t) return; bank.trash.splice(i,1);
+  if(t.kind==='q'){ const q=normQ(t.item); q.tags=q.tags.filter(id=>tagById.has(id)); if(!bank.questions.some(x=>x.id===q.id)){ bank.questions.push(q); indexQ(q); } }
+  else{ const n=normNote(t.item,true); if(!bank.notes.some(x=>x.id===n.id)) bank.notes.push(n); }
+  persist();
+}
+function trashTitle(t){
+  const it=t.item;
+  if(t.kind==='n') return it.title||'（无标题笔记）';
+  const txt=htmlToText([it.stem,...it.judges.map(j=>j.text)].join(' ')).replace(/\s+/g,' ').trim();
+  return txt.length>90?txt.slice(0,90)+'…':(txt||'（无题干）');
+}
+function renderTrash(){
+  purgeTrash();
+  const head=`<div class="view-head"><div><div class="crumb">删除的题目和笔记会在这里保留 ${TRASH_DAYS} 天，之后自动清除</div><h2>回收站</h2></div><span class="sp"></span>
+    ${bank.trash.length?'<button class="btn small danger" data-act="trashempty">清空回收站</button>':''}</div>`;
+  if(!bank.trash.length){ setMain(head+'<div class="empty">回收站是空的。</div>'); return; }
+  setMain(head+bank.trash.map((t,i)=>{ const it=t.item; const sec=SECTIONS[t.kind==='q'?it.primary:it.sec];
+    const left=Math.max(1,Math.ceil((t.deleted+TRASH_DAYS*864e5-Date.now())/864e5));
+    return `<div class="titem" data-ti="${i}"><div class="ti-main"><div class="ti-meta">${t.kind==='q'?`<span class="badge t-${it.type}">${TYPES[it.type]}</span>`:'<span class="badge">笔记</span>'}
+      ${t.kind==='q'&&it.source?`<span class="badge grade">${esc(sourceText(it))}</span>`:''}<span class="meta-sec">${esc(sec?sec.path:'')}</span></div>
+      <div class="ti-text">${esc(trashTitle(t))}</div><div class="hint">${new Date(t.deleted).toLocaleString('zh-CN',{hour12:false})} 删除 · 还会保留 ${left} 天</div></div>
+      <div class="btn-row"><button class="btn small" data-act="trashrestore">恢复</button><button class="btn small ghost danger" data-act="trashdel">彻底删除</button></div></div>`; }).join(''));
+}
+
 /* ================= 渲染：总入口 ================= */
 function render(resetScroll){
   renderGradeSwitch(); renderTree(); updateBasketCount();
-  const fn={home:renderHome,section:renderSection,search:renderSearch,basket:renderBasket,settings:renderSettings}[ui.view];
+  const fn={home:renderHome,section:renderSection,search:renderSearch,basket:renderBasket,settings:renderSettings,trash:renderTrash,papers:renderPapers}[ui.view];
   const m=$('#main'); const st=m.scrollTop; fn(); m.scrollTop=resetScroll?0:st;
 }
 function go(view,extra){ ui.view=view; ui.bulk=false; ui.sel.clear(); Object.assign(ui,extra||{}); render(true); }
@@ -786,7 +904,7 @@ function renderHome(){
 
 /* ---------- 筛选栏 ---------- */
 const curF=()=>ui.view==='search'?ui.sf:ui.f;
-const STATUS=[['missed','曾做错'],['pending','tag 待确认'],['unset','难度未评定'],['review','有导入备注']];
+const STATUS=[['missed','曾做错'],['pending','tag 待确认'],['unset','难度未评定'],['review','有导入备注'],['used','用过的'],['unused','没用过的']];
 function filterBarHTML(f){
   return `<div class="panel">
    <div class="f-row"><span class="f-lbl">题型</span>${TYPE_ORDER.map(t=>`<button class="chip ${f.types.includes(t)?'on':''}" data-act="ftype" data-v="${t}">${TYPES[t]}</button>`).join('')}</div>
@@ -811,6 +929,8 @@ function queryQuestions(o){
     if(st==='pending') arr=arr.filter(x=>x.q.tagsPending);
     if(st==='unset') arr=arr.filter(x=>x.q.levelUnset);
     if(st==='review') arr=arr.filter(x=>!!x.q.review);
+    if(st==='used') arr=arr.filter(x=>usedIn(x.q.id).length>0);
+    if(st==='unused') arr=arr.filter(x=>!usedIn(x.q.id).length);
   }
   const mn=parseFloat(o.coefMin),mx=parseFloat(o.coefMax);
   if(!isNaN(mn)) arr=arr.filter(x=>x.q.coef>=mn-1e-9);
@@ -896,9 +1016,14 @@ function metaBadges(q,inSection){
   if(q.source||q.qno) h+=`<span class="badge src" data-act="bysource" title="查看这份试卷收录的所有题">${esc(sourceText(q))}</span>`;
   h+=`<span class="badge grade">${q.grade}</span>`;
   if(isMissed(q)) h+=`<span class="badge missed">曾做错</span>`;
+  h+=usedBadge(q);
   if(inSection&&q.primary!==ui.sec) h+=`<span class="badge cross">跨节 · 主节 ${esc(ps.short)}</span>`;
   if(!inSection) h+=`<span class="meta-sec">${esc(ps.path)}</span>`;
   return h;
+}
+function usedBadge(q,skip){
+  const ps=usedIn(q.id).filter(p=>p.id!==skip); if(!ps.length) return '';
+  return `<span class="badge used" title="${esc(ps.map(p=>(p.date?p.date+' ':'')+p.name).join('\n'))}">已用于 ${ps.length} 份试卷</span>`;
 }
 function cardHTML(q){
   const inB=bank.basket.some(e=>e.qid===q.id); const open=ui.openAns.has(q.id); const sel=ui.sel.has(q.id);
@@ -1043,15 +1168,19 @@ function addToBasket(q){
   const e={qid:q.id,score:defaultScore(q)}; syncSubScores(e,q); bank.basket.push(e);
 }
 function removeFromBasket(id){ bank.basket=bank.basket.filter(e=>e.qid!==id); }
-function basketOrdered(){ return bank.basket.map((e,i)=>({e,i,q:qById(e.qid)})).filter(x=>x.q).sort((a,b)=>GROUP_OF[a.q.type]-GROUP_OF[b.q.type]||a.i-b.i); }
+function orderedOf(entries){ return entries.map((e,i)=>({e,i,q:qById(e.qid)})).filter(x=>x.q).sort((a,b)=>GROUP_OF[a.q.type]-GROUP_OF[b.q.type]||a.i-b.i); }
+function basketOrdered(){ return orderedOf(bank.basket); }
 function groupName(g,items){
   if(g<4) return ['判断题','单选题','多选题','填空题'][g];
   const ts=new Set(items.map(x=>x.q.type)); return ts.size>1?'解答题 / 实验题':TYPES[[...ts][0]];
 }
 function renderBasket(){
   const list=basketOrdered();
+  const bp=bank.papers.find(p=>p.id===bank.basketPaper);
   const head=`<div class="view-head"><div><div class="crumb">点击题目展开答案与解析；拖动左侧 ⋮⋮ 调整顺序（同一题型内）</div><h2>试题篮 · 预排版</h2></div><span class="sp"></span>
-    ${list.length?`<div class="btn-row"><button class="btn small" data-act="copyall">复制全部题目</button><button class="btn small" data-act="copyallans">复制全部答案解析</button><button class="btn small danger" data-act="clearbasket">清空</button></div>`:''}</div>`;
+    ${list.length?`<div class="btn-row"><button class="btn small primary" data-act="print">打印 / 存 PDF</button><button class="btn small" data-act="copyall">复制全部题目</button><button class="btn small" data-act="copyallans">复制全部答案解析</button><button class="btn small danger" data-act="clearbasket">清空</button></div>`:''}</div>
+    ${list.length?`<div class="panel row-between"><div>${bp?`当前是试卷「<b>${esc(bp.name)}</b>」${bp.date?`<span class="hint">（${bp.date}）</span>`:''}`:'<span class="hint">把试题篮保存为试卷，以后可以重新打开；每道题会记下用在了哪些试卷里。</span>'}</div>
+      <div class="btn-row">${bp?'<button class="btn small" data-act="papersave">保存修改到这份试卷</button><button class="btn small ghost" data-act="papersaveas">另存为新试卷</button>':'<button class="btn small" data-act="papersaveas">保存为试卷</button>'}</div></div>`:''}`;
   if(!list.length){ setMain(head+`<div class="empty">试题篮是空的。<br>在题目卡片上勾选“选入试题篮”，题目就会出现在这里。</div>`); return; }
   let total=0,wsum=0; const dist={1:[0,0],2:[0,0],3:[0,0],4:[0,0],5:[0,0]};
   list.forEach(({e,q})=>{ const s=entryScore(e,q); total+=s; wsum+=s*q.coef; dist[q.level][0]++; dist[q.level][1]+=s; });
@@ -1080,7 +1209,7 @@ function bitemHTML({e,q},num,first,last){
    <div class="drag" draggable="true" title="拖动调整顺序">⋮⋮</div>
    <div class="b-main" data-act="btoggle">
      <div class="b-q rendered"><span class="num">${num}.</span><div class="b-body">${qBodyHTML(q)}</div></div>
-     <div class="b-tagline"><span class="badge t-${q.type}">${TYPES[q.type]}</span><span class="badge lv${q.level}">${levelText(q)}</span>${q.source?`<span class="badge" style="border:1px solid var(--line);background:none">${esc(sourceText(q))}</span>`:''}${isMissed(q)?'<span class="badge missed">曾做错</span>':''}<span class="meta-sec">${esc(SECTIONS[q.primary].short)}</span></div>
+     <div class="b-tagline"><span class="badge t-${q.type}">${TYPES[q.type]}</span><span class="badge lv${q.level}">${levelText(q)}</span>${q.source?`<span class="badge" style="border:1px solid var(--line);background:none">${esc(sourceText(q))}</span>`:''}${isMissed(q)?'<span class="badge missed">曾做错</span>':''}${usedBadge(q,bank.basketPaper)}<span class="meta-sec">${esc(SECTIONS[q.primary].short)}</span></div>
      <div class="b-ans rendered" ${open?'':'hidden'}>${qAnsHTML(q,true)}</div>
    </div>
    <div class="b-side">${sc}<div class="b-btns"><button class="icon" data-act="bup" title="上移" ${first?'disabled':''}>↑</button><button class="icon" data-act="bdown" title="下移" ${last?'disabled':''}>↓</button><button class="icon" data-act="bcopy" title="复制这道题">⧉</button><button class="icon" data-act="bedit" title="编辑题目">✎</button><button class="icon danger" data-act="bremove" title="移出试题篮">×</button></div></div>
@@ -1095,6 +1224,98 @@ function swapNeighbor(id,dir){
   const list=basketOrdered(); const k=list.findIndex(x=>x.q.id===id); const n=list[k+dir];
   if(!n||GROUP_OF[n.q.type]!==GROUP_OF[list[k].q.type]) return;
   const a=bank.basket; [a[list[k].i],a[n.i]]=[a[n.i],a[list[k].i]]; persist(); render();
+}
+
+/* ---------- 试卷 ---------- */
+const paperOf=a=>bank.papers.find(p=>p.id===a.closest('[data-pid]')?.dataset.pid);
+function paperStats(p){ let n=0,total=0,miss=0; for(const e of p.entries){ const q=qById(e.qid); if(!q){ miss++; continue; } n++; total+=entryScore(clone(e),q); } return {n,total,miss}; }
+function renderPapers(){
+  const list=[...bank.papers].sort((a,b)=>(b.date||'').localeCompare(a.date||'')||b.created-a.created);
+  const head=`<div class="view-head"><div><div class="crumb">在试题篮里组好卷后点“保存为试卷”，试卷就会出现在这里</div><h2>试卷</h2></div></div>`;
+  if(!list.length){ setMain(head+'<div class="empty">还没有保存过试卷。<br>在试题篮里组好卷后，点“保存为试卷”。</div>'); return; }
+  setMain(head+list.map(p=>{ const st=paperStats(p);
+    return `<div class="paper" data-pid="${p.id}"><div class="pp-main"><div class="pp-name">${esc(p.name)}${bank.basketPaper===p.id?' <span class="badge used">试题篮中</span>':''}</div>
+      <div class="hint">${p.date?p.date+' · ':''}${st.n} 道题 · 共 ${fmt(st.total)} 分${st.miss?` · ${st.miss} 道题已删除`:''}</div></div>
+      <div class="btn-row"><button class="btn small primary" data-act="paperload">打开到试题篮</button><button class="btn small" data-act="paperprint">打印</button><button class="btn small ghost" data-act="paperedit">改名称/日期</button><button class="btn small ghost danger" data-act="paperdel">删除</button></div></div>`; }).join(''));
+}
+function paperForm(p){ return new Promise(res=>{
+  const m=$('#modal');
+  m.innerHTML=`<div class="modal-card"><h3>${p?'修改试卷信息':'保存为试卷'}</h3>
+    <label class="form-row"><span>试卷名称</span><input id="pfName" value="${esc(p?p.name:'')}" placeholder="例如：高三 10 月月考"></label>
+    <label class="form-row"><span>考试日期</span><input id="pfDate" type="date" value="${esc(p?p.date:today())}"></label>
+    <div class="btn-row" style="justify-content:flex-end;margin-top:14px"><button class="btn" data-x>取消</button><button class="btn primary" data-ok>保存</button></div></div>`;
+  m.hidden=false; $('#pfName').focus();
+  const ok=()=>{ const name=$('#pfName').value.trim(); if(!name){ $('#pfName').focus(); toast('请填写试卷名称'); return; } m.hidden=true; res({name,date:$('#pfDate').value||''}); };
+  $('#pfName').onkeydown=e=>{ if(e.key==='Enter') ok(); };
+  m.onclick=e=>{ if(e.target.closest('[data-ok]')) ok(); else if(e.target.closest('[data-x]')){ m.hidden=true; res(null); } };
+}); }
+
+/* ---------- 打印 / 存 PDF ---------- */
+const CN_NUM='一二三四五六七八九十';
+function printDialog(list,title){
+  if(!list.length){ toast('没有可以打印的题目'); return; }
+  const o=Object.assign({title:'',content:'stu',paper:'a4',size:'12',score:true,info:true,space:true},bank.settings.print||{}); o.title=title||'';
+  const seg=(k,opts)=>`<div class="seg" data-pk="${k}">${opts.map(([v,l])=>`<button data-v="${v}" class="${o[k]===v?'on':''}">${l}</button>`).join('')}</div>`;
+  const m=$('#modal');
+  m.innerHTML=`<div class="modal-card" style="width:520px"><h3>打印 / 存 PDF</h3>
+    <label class="form-row"><span>标题</span><input id="ptTitle" value="${esc(o.title)}" placeholder="例如：高三 10 月月考 生物"></label>
+    <div class="form-row"><span>内容</span>${seg('content',[['stu','学生卷'],['ans','答案卷'],['both','学生卷 + 答案卷']])}</div>
+    <div class="form-row"><span>纸张</span>${seg('paper',[['a4','A4 竖版'],['a3','A3 横版两栏']])}</div>
+    <div class="form-row"><span>字号</span>${seg('size',[['10.5','五号'],['12','小四'],['14','四号']])}</div>
+    <div class="form-row"><span></span><div style="display:flex;flex-direction:column;gap:4px">
+      <label class="chk"><input type="checkbox" id="ptScore" ${o.score?'checked':''}>标注分值</label>
+      <label class="chk"><input type="checkbox" id="ptInfo" ${o.info?'checked':''}>标题下加“班级、姓名、学号”</label>
+      <label class="chk"><input type="checkbox" id="ptSpace" ${o.space?'checked':''}>解答题、实验题下方留作答空白</label></div></div>
+    <p class="hint" style="margin:10px 0 0">点“打印”后会打开打印窗口：目标打印机选“另存为 PDF”即可得到 PDF 文件。在“更多设置”里取消勾选“页眉和页脚”，可以去掉页面顶部的网址和日期。</p>
+    <div class="btn-row" style="justify-content:flex-end;margin-top:14px"><button class="btn" data-x>取消</button><button class="btn primary" data-ok>打印</button></div></div>`;
+  m.hidden=false;
+  m.onclick=e=>{
+    const b=e.target.closest('[data-pk] button'); if(b){ const k=b.parentElement.dataset.pk; o[k]=b.dataset.v; b.parentElement.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); return; }
+    if(e.target.closest('[data-x]')){ m.hidden=true; return; }
+    if(e.target.closest('[data-ok]')){
+      o.title=$('#ptTitle').value.trim(); o.score=$('#ptScore').checked; o.info=$('#ptInfo').checked; o.space=$('#ptSpace').checked;
+      const {title:_t,...keep}=o; bank.settings.print=keep; persist(); m.hidden=true; doPrint(list,o);
+    }
+  };
+}
+function printGroups(list){ const gs=[]; for(let g=0;g<5;g++){ const items=list.filter(x=>GROUP_OF[x.q.type]===g); if(items.length) gs.push({g,items}); } return gs; }
+function printHTML(list,o,ans){
+  const gs=printGroups(list); const total=list.reduce((a,x)=>a+entryScore(x.e,x.q),0); let num=0;
+  let h=`<div class="pt-head"><div class="pt-title">${esc(o.title||'试卷')}${ans?' · 参考答案':''}</div>`;
+  if(!ans&&(o.info||o.score)) h+=`<div class="pt-info">${o.info?'班级＿＿＿＿＿＿　姓名＿＿＿＿＿＿　学号＿＿＿＿＿＿':''}${o.info&&o.score?'　　':''}${o.score?`满分 ${fmt(total)} 分`:''}</div>`;
+  h+='</div><div class="pt-cols">';
+  gs.forEach(({g,items},gi)=>{
+    const scores=items.map(x=>entryScore(x.e,x.q)); const sum=scores.reduce((a,b)=>a+b,0); const same=scores.every(v=>v===scores[0]);
+    const info=o.score?`（本题共 ${items.length} 小题，${same&&items.length>1?`每小题 ${fmt(scores[0])} 分，`:''}共 ${fmt(sum)} 分）`:'';
+    h+=`<div class="pt-group">${CN_NUM[gi]}、${groupName(g,items)}${info}</div>`;
+    items.forEach((x,k)=>{ num++;
+      if(ans){ h+=`<div class="pt-ans rendered">${answerCopyHTML(x.q,num)}</div>`; return; }
+      const sc=o.score&&!same?`<span class="pt-sc">（${fmt(scores[k])} 分）</span>`:'';
+      const sp=o.space&&(x.q.type==='answer'||x.q.type==='exp');
+      h+=`<div class="pt-q ${sp?'long':''}" ${sp?'data-space':''}><span class="pt-no">${num}．</span><div class="pt-body rendered">${sc}${qBodyHTML(x.q)}</div></div>`;
+    });
+  });
+  return h+'</div>';
+}
+async function loadImages(root){
+  await Promise.all([...root.querySelectorAll('img[data-img]')].map(async img=>{
+    const n=img.dataset.img;
+    try{ let u=imgCache.get(n); if(!u){ u=URL.createObjectURL(await store.imageBlob(n)); imgCache.set(n,u); } img.src=u; await img.decode(); }
+    catch(e){ img.remove(); }
+  }));
+}
+async function doPrint(list,o){
+  const P=$('#printArea');
+  let h=''; if(o.content!=='ans') h+=`<div class="pt">${printHTML(list,o,false)}</div>`;
+  if(o.content!=='stu') h+=`<div class="pt ${o.content==='both'?'pt-break':''}">${printHTML(list,o,true)}</div>`;
+  P.innerHTML=h; P.style.setProperty('--pt-size',o.size+'pt'); P.classList.toggle('a3',o.paper==='a3');
+  $$('.pt-q[data-space]',P).forEach(q=>{ const subs=q.querySelectorAll('.sub'); if(subs.length) subs.forEach(s=>s.insertAdjacentHTML('afterend','<div class="pt-space"></div>')); else q.querySelector('.pt-body').insertAdjacentHTML('beforeend','<div class="pt-space"></div>'); });
+  $('#pageStyle').textContent=`@page{size:${o.paper==='a3'?'A3 landscape':'A4 portrait'};margin:${o.paper==='a3'?'14mm 16mm':'16mm 15mm'};@bottom-center{content:"第 " counter(page) " 页（共 " counter(pages) " 页）";font-size:9pt;color:#555}}`;
+  setStatus('准备打印…'); await loadImages(P);
+  document.body.classList.add('printing');
+  const done=()=>{ document.body.classList.remove('printing'); P.innerHTML=''; setStatus(dirty?'保存中…':'已保存'); window.removeEventListener('afterprint',done); };
+  window.addEventListener('afterprint',done);
+  setTimeout(()=>window.print(),50);
 }
 
 /* ---------- 复制到 Word ---------- */
@@ -1171,6 +1392,8 @@ function renderSettings(){
   <div class="panel"><div class="panel-title">导出</div>
     <div class="btn-row"><button class="btn" data-act="export">导出完整备份（含图片）</button><button class="btn" data-act="exporttext">导出纯文字版</button></div>
     <p class="hint" style="margin:8px 0 0">完整备份包含全部题目、笔记和图片，可以存到 U 盘或网盘。纯文字版只包含文字内容，不含图片，体积较小。</p></div>
+  <div class="panel"><div class="panel-title">回收站</div>
+    <div class="btn-row"><button class="btn" data-act="gotrash">打开回收站${bank.trash.length?`（${bank.trash.length}）`:''}</button><span class="hint">删除的题目和笔记保留 ${TRASH_DAYS} 天，可以随时恢复。</span></div></div>
   <div class="panel"><div class="panel-title">维护</div>
     <div class="btn-row"><button class="btn" data-act="cleanimg">清理未使用的图片</button><span class="hint">录题时删掉或取消保存的图片会留在 images 文件夹里，可以在这里清理。</span></div></div>`);
 }
@@ -1182,7 +1405,7 @@ async function saveFile(text,fname){
 }
 async function exportFull(){
   await flush();
-  const names=new Set(); bank.questions.forEach(q=>collectImgNames(allHtml(q)).forEach(n=>names.add(n))); bank.notes.forEach(n=>collectImgNames(n.body).forEach(x=>names.add(x)));
+  const names=usedImageNames();
   const images={}; for(const n of names){ try{ images[n]=await blobToDataURL(await store.imageBlob(n)); }catch(e){} }
   await saveFile(JSON.stringify({format:'qbank-full',exported:new Date().toISOString(),bank,images}),`拾萃完整备份-${today()}.json`);
 }
@@ -1222,6 +1445,7 @@ async function restoreOrImport(){
     incoming.tags.forEach(t=>{ if(!has(bank.tags,t.id)){ bank.tags.push(t); addT++; } });
     incoming.questions.forEach(q=>{ if(!has(bank.questions,q.id)){ bank.questions.push(normQ(q)); addQ++; } });
     incoming.notes.forEach(n=>{ if(!has(bank.notes,n.id)){ bank.notes.push(n); addN++; } });
+    incoming.papers.forEach(p=>{ if(!has(bank.papers,p.id)) bank.papers.push(p); });
     reindexAll(); persist(); alert(`合并完成：新增 ${addQ} 道题、${addN} 篇笔记、${addT} 个 tag。`);
   }
   bank.basket=bank.basket.filter(e=>qIndex.has(e.qid)); ui.view='home'; render(true);
@@ -1256,7 +1480,7 @@ function judgeKey(k){ k=String(k??'').trim(); return /^(√|✓|✔|对|正确|T
 async function importQuestions(data){
   (data.topics||[]).forEach(n=>addTopic(String(n)));
   (data.extraTags||[]).forEach(t=>{ const sec=resolveSection(t.section,true); if(sec&&t.name) addTag(sec,t.name); });
-  const list=Array.isArray(data.questions)?data.questions:[]; let ok=0; const errs=[]; const base=Date.now();
+  const list=Array.isArray(data.questions)?data.questions:[]; let ok=0; const errs=[]; const base=Date.now(); const fresh=[], dups=[]; let skipped=0;
   const show=$('#saveStatus');
   for(const [i,r] of list.entries()){
     if(i%10===0) show.textContent=`导入中 ${i}/${list.length}…`;
@@ -1279,9 +1503,18 @@ async function importQuestions(data){
         if(!ts||!nm) continue; const tg=addTag(ts,nm); if(tg&&!q.tags.includes(tg.id)) q.tags.push(tg.id);
       }
       if(!level){ q.level=isMissed(q)?4:3; q.coef=typeof r.coef==='number'?r.coef:bank.settings.coef[q.level]; }
-      bank.questions.push(q); ok++;
+      const sim=findSimilar(q,fresh); if(sim.length) dups.push({q,m:sim[0].q});
+      fresh.push({q,bg:bigrams(dupText(q))});
     }catch(e){ errs.push(`第 ${i+1} 题：${e.message}`); }
   }
+  if(dups.length){
+    const skip=await choose('发现可能重复的题',`有 ${dups.length} 道题和题库里已有的题（或本次导入的其他题）文字高度相似。\n\n跳过：不导入这 ${dups.length} 道题。\n仍然导入：照常导入，并给这些题加上“导入备注”，之后可以用“有导入备注”筛选出来逐一检查。`,[{label:'仍然导入',value:false},{label:'跳过这些题',value:true,primary:true}]);
+    const ds=new Set(dups.map(x=>x.q));
+    if(skip){ for(let i=fresh.length-1;i>=0;i--) if(ds.has(fresh[i].q)) fresh.splice(i,1); }
+    else dups.forEach(({q,m})=>{ const msg=`可能与已有题重复：${qSnippet(m,40)}（${SECTIONS[m.primary].short}${m.source?' · '+sourceText(m):''}）`; q.review=q.review?q.review+'；'+msg:msg; });
+    if(skip) skipped=dups.length;
+  }
+  fresh.forEach(x=>{ bank.questions.push(x.q); ok++; });
   let nn=0;
   for(const [i,n] of (data.notes||[]).entries()){
     try{ const sec=resolveSection(n.section,true); if(!sec) throw new Error('找不到所属节：'+n.section);
@@ -1289,7 +1522,7 @@ async function importQuestions(data){
     catch(e){ errs.push(`第 ${i+1} 篇笔记：${e.message}`); }
   }
   reindexAll(); persist(); render();
-  alert(`导入完成：${ok} 道题、${nn} 篇笔记${errs.length?`；失败 ${errs.length} 项：\n`+errs.slice(0,12).join('\n'):''}`);
+  alert(`导入完成：${ok} 道题、${nn} 篇笔记${skipped?`；跳过 ${skipped} 道可能重复的题`:''}${errs.length?`；失败 ${errs.length} 项：\n`+errs.slice(0,12).join('\n'):''}`);
 }
 function applyUpdates(data){
   let n=0; const miss=[];
@@ -1309,7 +1542,7 @@ function applyUpdates(data){
   alert(`更新完成：${n} 道题${miss.length?`；${miss.length} 道题在题库中找不到（可能已删除）`:''}`);
 }
 async function cleanImages(){
-  const used=new Set(); bank.questions.forEach(q=>collectImgNames(allHtml(q)).forEach(n=>used.add(n))); bank.notes.forEach(n=>collectImgNames(n.body).forEach(x=>used.add(x)));
+  const used=usedImageNames();
   const all=await store.listImages(); const un=all.filter(n=>!used.has(n));
   if(!un.length){ toast('没有未使用的图片'); return; }
   const ok=await choose('清理未使用的图片',`发现 ${un.length} 张没有被任何题目或笔记使用的图片。\n只会删除数据文件夹 images 里的这些图片。（注意：如果以后用较早的自动备份恢复，其中引用的这些图片将无法显示。）`,[{label:'取消',value:false},{label:'删除',value:true,danger:true}]);
@@ -1337,8 +1570,8 @@ main.addEventListener('click',async e=>{
     case 'tagconfirm': q.tagsPending=false; q.updated=Date.now(); persist(); renderList(); break;
     case 'reviewok': q.review=''; persist(); renderList(); break;
     case 'del': {
-      const ok=await choose('删除题目','确定删除这道题吗？删除后无法撤销（可以从每日自动备份中找回）。',[{label:'取消',value:false},{label:'删除',value:true,danger:true}]);
-      if(!ok) return; bank.questions=bank.questions.filter(x=>x.id!==q.id); qIndex.delete(q.id); removeFromBasket(q.id); ui.sel.delete(q.id); persist(); renderTree(); updateBasketCount(); renderList(); if(ui.view==='section') renderTagbar(); break; }
+      const ok=await choose('删除题目',`确定删除这道题吗？删除后会放进回收站，${TRASH_DAYS} 天内可以在“设置 → 回收站”里恢复。`,[{label:'取消',value:false},{label:'删除',value:true,danger:true}]);
+      if(!ok) return; trashQuestion(q); persist(); toast('已移到回收站'); renderTree(); updateBasketCount(); renderList(); if(ui.view==='section') renderTagbar(); break; }
     case 'sectab': ui.secTab=a.dataset.v; render(true); break;
     case 'topicrename': { const t=bank.topics.find(t=>t.id===ui.sec); const n=prompt('专题名称：',t.name); if(!n||!n.trim()) return; t.name=n.trim(); applyTopics(); persist(); render(); break; }
     case 'topicdel': {
@@ -1351,7 +1584,11 @@ main.addEventListener('click',async e=>{
     case 'notetoggle': ui.openNotes.has(note.id)?ui.openNotes.delete(note.id):ui.openNotes.add(note.id); ui.view==='search'?renderNoteHits():render(); break;
     case 'noteedit': openNoteEditor(note); break;
     case 'notecopy': copyHTML(`<div><b>${esc(note.title)}</b></div>`+note.body); break;
-    case 'notedel': { const ok=await choose('删除笔记',`确定删除笔记「${note.title}」吗？`,[{label:'取消',value:false},{label:'删除',value:true,danger:true}]); if(!ok) return; bank.notes=bank.notes.filter(n=>n.id!==note.id); persist(); render(); break; }
+    case 'notedel': { const ok=await choose('删除笔记',`确定删除笔记「${note.title}」吗？删除后会放进回收站，${TRASH_DAYS} 天内可以恢复。`,[{label:'取消',value:false},{label:'删除',value:true,danger:true}]); if(!ok) return; trashNote(note); persist(); render(); toast('已移到回收站'); break; }
+    case 'gotrash': go('trash'); break;
+    case 'trashrestore': { const i=+a.closest('[data-ti]').dataset.ti; const t=bank.trash[i]; restoreTrash(i); render(); toast(t.kind==='q'?'题目已恢复':'笔记已恢复'); break; }
+    case 'trashdel': { const i=+a.closest('[data-ti]').dataset.ti; const ok=await choose('彻底删除','彻底删除后无法再从回收站恢复，确定吗？',[{label:'取消',value:false},{label:'彻底删除',value:true,danger:true}]); if(!ok) return; bank.trash.splice(i,1); persist(); render(); break; }
+    case 'trashempty': { const ok=await choose('清空回收站',`确定彻底删除回收站里的 ${bank.trash.length} 项内容吗？此操作无法撤销。`,[{label:'取消',value:false},{label:'清空',value:true,danger:true}]); if(!ok) return; bank.trash=[]; persist(); render(); break; }
     case 'tagtoggle': case 'cardtag': {
       const id=a.dataset.id; f.tags.includes(id)?f.tags.splice(f.tags.indexOf(id),1):f.tags.push(id); f.page=1;
       if(ui.view==='section') renderTagbar(); else renderSearchTags(); renderList(); break; }
@@ -1400,7 +1637,19 @@ main.addEventListener('click',async e=>{
     case 'bremove': removeFromBasket(q.id); persist(); render(); break;
     case 'copyall': copyAll(false); break;
     case 'copyallans': copyAll(true); break;
-    case 'clearbasket': { const ok=await choose('清空试题篮','确定移出试题篮里的全部题目吗？（题目本身不会被删除）',[{label:'取消',value:false},{label:'清空',value:true,danger:true}]); if(ok){ bank.basket=[]; persist(); render(); } break; }
+    case 'clearbasket': { const ok=await choose('清空试题篮','确定移出试题篮里的全部题目吗？（题目本身不会被删除）',[{label:'取消',value:false},{label:'清空',value:true,danger:true}]); if(ok){ bank.basket=[]; bank.basketPaper=''; persist(); render(); } break; }
+    case 'print': printDialog(basketOrdered(),bank.papers.find(p=>p.id===bank.basketPaper)?.name||''); break;
+    case 'papersaveas': { const v=await paperForm(null); if(!v) return; const p=normPaper({id:uid(),...v,entries:bank.basket.map(e=>clone(e))}); bank.papers.push(p); bank.basketPaper=p.id; persist(); render(); toast('已保存为试卷'); break; }
+    case 'papersave': { const p=bank.papers.find(p=>p.id===bank.basketPaper); if(!p) return; p.entries=bank.basket.map(e=>normEntry(e)); p.updated=Date.now(); persist(); render(); toast('已保存到试卷「'+p.name+'」'); break; }
+    case 'paperload': { const p=paperOf(a); if(!p) return;
+      if(bank.basket.length&&bank.basketPaper!==p.id){ const ok=await choose('打开试卷',`试题篮里现在有 ${bank.basket.length} 道题。打开试卷「${p.name}」会替换试题篮里的内容（题目本身不受影响）。`,[{label:'取消',value:false},{label:'替换并打开',value:true,primary:true}]); if(!ok) return; }
+      const miss=p.entries.filter(e=>!qIndex.has(e.qid)).length;
+      bank.basket=p.entries.filter(e=>qIndex.has(e.qid)).map(e=>clone(e)); bank.basketPaper=p.id; persist(); go('basket');
+      if(miss) toast(`有 ${miss} 道题已被删除，没有放进试题篮（可以到回收站恢复）`); break; }
+    case 'paperprint': { const p=paperOf(a); if(p) printDialog(orderedOf(p.entries.map(e=>clone(e))),p.name); break; }
+    case 'paperedit': { const p=paperOf(a); const v=await paperForm(p); if(!v) return; Object.assign(p,v,{updated:Date.now()}); persist(); render(); break; }
+    case 'paperdel': { const p=paperOf(a); const ok=await choose('删除试卷',`确定删除试卷「${p.name}」吗？只删除这份试卷的记录，题目本身不受影响；这些题的“已用于”次数会相应减少。`,[{label:'取消',value:false},{label:'删除',value:true,danger:true}]); if(!ok) return;
+      bank.papers=bank.papers.filter(x=>x!==p); if(bank.basketPaper===p.id) bank.basketPaper=''; persist(); render(); break; }
     case 'changefolder': await flush(); pickFolder(); break;
     case 'export': exportFull(); break;
     case 'exporttext': exportText(); break;
@@ -1610,6 +1859,7 @@ async function saveEditor(andNew){
     d.stem=ensureSlot(d.stem);
   }else{ d.options=[]; d.key=''; d.wrong=''; if(d.type!=='judge') d.stem=d.stem.replace(SLOT,''); }
   if(d.type!=='judge') d.judges=[];
+  if(editorIsNew){ const sim=findSimilar(d); if(sim.length&&!(await dupDialog(sim))) return; }
   autoLevel();
   if(d.type!=='answer'&&d.type!=='exp') d.subs=[];
   if(isChoice(d.type)||d.type==='judge') d.answer='';
