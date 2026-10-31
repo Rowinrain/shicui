@@ -6,11 +6,13 @@
 
 - `拾萃.html`：整个程序，单文件（HTML + CSS + JS 都在一个文件里），无依赖、无构建步骤、不联网。修改后直接替换这个文件发布。
 - `桌面窗口/`：创建桌面图标的脚本（macOS `.command` 生成 ~/Applications/拾萃.app；Windows `.cmd` 调用 `windows-setup.ps1` 生成快捷方式），都是用 Chrome/Edge 的 `--app=file:///…/拾萃.html` 打开独立窗口，程序本身不变。`.ps1` 必须是 UTF-8 带 BOM、CRLF；`.cmd` 只用 ASCII。
+- `latest.json` / `更新记录.md` / `tools/release.py`：在线更新（见下）。
 - `tools/word-import/`：Word 题目文档 → 导入 JSON 的 Python 脚本（extract → segment → convert，分节和 tag 写在 mapping.py）。
 
 ## 硬性要求
 
-- 数据只存放在用户选定的文件夹（File System Access API），不得读写其他位置；只支持 Chrome / Edge 桌面版。
+- 数据只存放在用户选定的文件夹（File System Access API），不得读写其他位置；唯一例外是在线更新时写入用户选中的 拾萃.html。只支持 Chrome / Edge 桌面版。
+- 只有“检查更新”时联网，不要加其他联网功能，也不要在启动时自动联网。
 - 界面里任何地方都不要提到 Claude、AI 等，只写基础操作说明。
 - 题干里不显示答案：选择/判断题末尾显示空的（　　），填空显示空白下划线；答案、曾选错/判错/答错的标记只出现在答案区。
 - 曾做错的题，难度默认归为“较难”（用户手动选过难度则不改）。
@@ -37,6 +39,16 @@
 - `format: "qbank-update"`：按 `id` 更新已有题目（tags、addTags、tagsPending、primary、level、grade、review），用于重新打 tag。
 - 设置页“导出纯文字版”（`format: "qbank-text"`）可得到不含图片的题目文字，用来整理 tag 后生成 qbank-update 文件。
 
+## 发布新版（在线更新）
+
+程序内“设置 → 程序更新”读取 main 分支上的 `latest.json`（raw.githubusercontent.com，连不上时用 jsDelivr 和 ghfast.top 等加速地址，需两个来源一致），下载 拾萃.html 并按 sha256 校验后写入用户选中的 拾萃.html（句柄存在 IndexedDB `program`），旧版备份到 backups/。所以**合并到 main 就是发布**：
+
+1. 改 拾萃.html 时把 `PROGRAM_VERSION` 改大（只改了说明文档可以不改）；数据格式变了另外提升 `APP_VERSION`。
+2. 在 `更新记录.md` 顶部加 `## v新版本号` 和更新内容（用户会在更新提示里看到）。
+3. 运行 `python3 tools/release.py` 重新生成 latest.json，一起提交。GitHub Actions 会用 `--check` 检查三者是否一致；拾萃.html 改了但 latest.json 没重新生成，用户更新时 sha256 会校验失败。
+
 ## 测试
 
 用 Playwright（环境已预装 Chromium）打开 `拾萃.html?demo`（内存中的演示数据，不读写文件夹）；测试真实读写可用 `navigator.storage.getDirectory()` 代替用户文件夹并调用 `useHandle`。
+
+测试在线更新：用 `page.route` 拦截 raw.githubusercontent.com / jsdelivr / 加速地址，返回伪造的 latest.json 和改了版本号的 拾萃.html；程序文件用 OPFS 里的文件代替。注意 headless Chromium 从 IndexedDB 读回 OPFS 句柄会崩溃，测试时要把 `idbGet('program')` 换成直接返回句柄。
