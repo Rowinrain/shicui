@@ -204,7 +204,7 @@ mark{background:#fbeaa0;color:inherit;padding:0 1px;border-radius:2px}
 .sub{display:flex;gap:4px;margin-top:4px}
 .sub-no{flex:none}
 
-/* ---------- 首页 ---------- */
+/* ---------- 首页（工作台） ---------- */
 .hero{padding:10px 0 6px}
 .hero h2{font-size:30px;margin:0 0 4px}
 .stat-row{display:flex;gap:12px;margin:18px 0;flex-wrap:wrap}
@@ -218,6 +218,28 @@ mark{background:#fbeaa0;color:inherit;padding:0 1px;border-radius:2px}
 .book-card:hover{border-color:var(--accent-b)}
 .book-card .bn{font-family:var(--serif);font-size:17px;font-weight:600}
 .tips{margin:6px 0 0;padding-left:20px;color:#4a473f;line-height:1.9}
+.ws-acts{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;margin:16px 0 20px}
+.ws-act{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;cursor:pointer;box-shadow:var(--shadow);transition:border-color .12s,background .12s}
+.ws-act:hover{border-color:var(--accent-b);background:var(--accent-w)}
+.ws-act b{font-size:15px}
+.ws-act span{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.ws-act.main{background:var(--accent);border-color:var(--accent);color:#fff}
+.ws-act.main span{color:rgba(255,255,255,.85)}
+.ws-act.main:hover{background:var(--accent-d)}
+.ws-title{font-weight:600;margin:4px 0 8px;color:var(--muted);font-size:13px}
+.stat.zero .sv{color:var(--faint)}
+.ws-cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;margin-bottom:6px}
+@media (max-width:900px){.ws-cols{grid-template-columns:1fr}}
+.ws-item{display:flex;align-items:center;gap:8px;padding:6px 4px;border-top:1px solid var(--line2);font-size:13.5px}
+.ws-item:first-of-type{border-top:none}
+.ws-item[data-act]{cursor:pointer;border-radius:6px}
+.ws-item[data-act]:hover{background:var(--accent-w)}
+.ws-txt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ws-paper .ws-txt .hint{margin-left:8px}
+details.panel>summary{list-style:none}
+details.panel>summary::-webkit-details-marker{display:none}
+details.panel>summary:before{content:'▶';font-size:10px;color:var(--muted);transition:transform .15s}
+details.panel[open]>summary:before{transform:rotate(90deg)}
 
 /* ---------- 笔记 ---------- */
 .note{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 18px;margin-bottom:12px;box-shadow:var(--shadow)}
@@ -392,7 +414,7 @@ pre{background:#fbf8f2;border:1px solid var(--line2);border-radius:10px;padding:
 <div id="gate"></div>
 <div id="app" hidden>
   <header>
-    <div class="brand" data-nav="home">
+    <div class="brand" data-nav="home" title="回到工作台">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#c96442" stroke-width="1.8" stroke-linecap="round"><path d="M7 3c0 6 10 6 10 12s-10 3-10 6"/><path d="M17 3c0 6-10 6-10 12s10 3 10 6"/><path d="M9 6h6M9 18h6M10.5 12h3"/></svg>
       拾萃<span class="hint" style="margin-left:2px">高中生物好题本</span>
     </div>
@@ -418,7 +440,7 @@ pre{background:#fbf8f2;border:1px solid var(--line2);border-radius:10px;padding:
 <script>
 'use strict';
 const APP_VERSION=3; // 数据格式版本
-const PROGRAM_VERSION='3.1.1'; // 程序版本：发布新版时改大，写好 更新记录.md，再运行 tools/release.py 更新 latest.json
+const PROGRAM_VERSION='3.2.0'; // 程序版本：发布新版时改大，写好 更新记录.md，再运行 tools/release.py 更新 latest.json
 const TRASH_DAYS=30;
 /* ================= 教材目录（人教版 2019） ================= */
 const CATALOG_RAW = [
@@ -897,27 +919,47 @@ function addTopic(name){
 }
 function newTopic(){ const n=prompt('新专题名称（例如：实验专题、科学方法、易混辨析）：'); if(!n||!n.trim()) return; const t=addTopic(n); ui.openBooks.add('Z'); openSection(t.id); }
 
-/* ---------- 首页 ---------- */
+/* ---------- 首页（工作台） ---------- */
+const WEEK='日一二三四五六';
 function renderHome(){
   const c=countsAll(); const qs=bank.questions.filter(inGrade);
   const cnt=(fn)=>qs.filter(fn).length;
-  setMain(`<div class="hero"><h2>拾萃 · 高中生物好题本</h2><div class="muted">人教版（2019）必修1 – 选择性必修3 · 数据文件夹：${esc(store.name)}${ui.grade!=='all'?` · 当前只看 <b>${ui.grade}</b>`:''}</div></div>
-  <div class="stat-row">
-    <div class="stat"><div class="sv">${qs.length}</div><div class="sl">道题目</div></div>
-    <div class="stat"><div class="sv">${bank.notes.length}</div><div class="sl">篇知识笔记</div></div>
-    <div class="stat link" data-act="gostatus" data-v="missed"><div class="sv">${cnt(isMissed)}</div><div class="sl">道曾做错的题</div></div>
-    <div class="stat link" data-act="gostatus" data-v="pending"><div class="sv">${cnt(q=>q.tagsPending)}</div><div class="sl">道 tag 待确认</div></div>
-    <div class="stat link" data-act="gostatus" data-v="unset"><div class="sv">${cnt(q=>q.levelUnset)}</div><div class="sl">道难度未评定</div></div>
+  const d=new Date();
+  const lastQ=bank.questions.reduce((a,q)=>!a||q.created>a.created?q:a,null); // 没进过任何一节时，默认录到最近录入的那一节
+  const sec=SECTIONS[ui.sec]||SECTIONS[lastQ?.primary]||SECTIONS['1-1-1'];
+  const bs=paperStats({entries:bank.basket}); const bp=bank.papers.find(p=>p.id===bank.basketPaper);
+  const acts=[
+    {act:'homenew',t:'录入新题',h:`录到：${sec.short}（打开后可以改）`,main:true},
+    {act:'homenote',t:'写知识笔记',h:`写到：${sec.short}`},
+    {act:'homesearch',t:'搜索题目',h:'按关键词、tag、来源查找'},
+    {nav:'basket',t:'试题篮 · 组卷',h:bank.basket.length?`${bs.n} 道题 · 共 ${fmt(bs.total)} 分${bp?` · 「${esc(bp.name)}」`:''}`:'还是空的'},
+    {nav:'papers',t:'试卷存档',h:bank.papers.length?`${bank.papers.length} 份试卷`:'还没有保存过试卷'},
+    {act:'import',t:'导入题目',h:'导入 .json 题目文件'},
+    {act:'export',t:'导出完整备份',h:'含图片，可存到 U 盘或网盘'},
+    {act:'gotrash',t:'回收站',h:bank.trash.length?`${bank.trash.length} 项，保留 ${TRASH_DAYS} 天`:'空'},
+  ];
+  const todo=[['missed','道曾做错的题',cnt(isMissed)],['pending','道 tag 待确认',cnt(q=>q.tagsPending)],['unset','道难度未评定',cnt(q=>q.levelUnset)],['review','道有导入备注',cnt(q=>!!q.review)]];
+  const recentQ=[...qs].sort((a,b)=>b.created-a.created).slice(0,6);
+  const recentP=[...bank.papers].sort((a,b)=>(b.date||'').localeCompare(a.date||'')||b.created-a.created).slice(0,4);
+  setMain(`<div class="hero"><h2>工作台</h2><div class="muted">${d.getMonth()+1} 月 ${d.getDate()} 日 星期${WEEK[d.getDay()]} · 共 ${qs.length} 道题、${bank.notes.length} 篇笔记 · 数据文件夹：${esc(store.name)}${ui.grade!=='all'?` · 当前只看 <b>${ui.grade}</b>`:''}</div></div>
+  <div class="ws-acts">${acts.map(a=>`<button class="ws-act${a.main?' main':''}" ${a.nav?`data-nav="${a.nav}"`:`data-act="${a.act}" data-sec="${sec.id}"`}><b>${a.t}</b><span>${a.h}</span></button>`).join('')}</div>
+  <div class="ws-title">待处理</div>
+  <div class="stat-row" style="margin-top:0">${todo.map(([v,l,n])=>`<div class="stat link${n?'':' zero'}" data-act="gostatus" data-v="${v}"><div class="sv">${n}</div><div class="sl">${l}</div></div>`).join('')}</div>
+  <div class="ws-cols">
+    <div class="panel"><div class="panel-title">最近录入</div>${recentQ.length?recentQ.map(q=>`<div class="ws-item" data-act="homesec" data-id="${q.primary}"><span class="badge t-${q.type}">${TYPES[q.type]}</span><span class="ws-txt">${esc(qSnippet(q,40))}</span><span class="hint">${esc(SECTIONS[q.primary].short)}</span></div>`).join(''):'<div class="hint">还没有题目。点上面的“录入新题”开始。</div>'}</div>
+    <div class="panel"><div class="panel-title">最近试卷<span class="sp"></span>${bank.papers.length>recentP.length?'<button class="btn ghost small" data-nav="papers">全部</button>':''}</div>${recentP.length?recentP.map(p=>{ const st=paperStats(p); return `<div class="ws-item ws-paper" data-pid="${p.id}"><span class="ws-txt"><b>${esc(p.name)}</b><span class="hint">${p.date?p.date+' · ':''}${st.n} 道题 · ${fmt(st.total)} 分</span></span><button class="btn small" data-act="paperload">打开到试题篮</button><button class="btn small ghost" data-act="paperprint">打印</button></div>`; }).join(''):'<div class="hint">在试题篮里组好卷后点“保存为试卷”，就会出现在这里。</div>'}</div>
   </div>
+  <div class="ws-title">教材目录</div>
   <div class="books">${[...CATALOG,BOOKS.Z].map(b=>`<div class="book-card" data-act="openbook" data-id="${b.id}"><div class="bn">${esc(b.name)}</div><div class="hint">${b.id==='Z'?TOPIC_CHAP.sections.length+' 个专题':b.chapters.length+' 章'} · ${c.book[b.id]||0} 道题</div></div>`).join('')}</div>
-  <div class="panel" style="margin-top:18px"><div class="panel-title">使用提示</div>
+  <details class="panel" style="margin-top:18px"><summary class="panel-title" style="cursor:pointer;margin:0">使用提示</summary>
    <ol class="tips">
     <li>左侧顶部可以切换“全部 / 高一 / 高二 / 高三”，目录、题数、列表和搜索都会跟着切换。</li>
     <li>每一节分“题目”和“笔记”两栏。跨书的内容放在“综合专题”里，专题由你自己新建。</li>
     <li>选择题、判断题题干末尾的（　）会自动加上，不用自己输入。填空题：选中答案文字，点工具栏的“挖空”。</li>
     <li>录题时可以标记自己曾经误选的选项、判错的判断、答错的空：它们在答案区用蓝色标出，难度默认归为“较难”，还能用“曾做错”筛选出来。题干里不会显示答案。</li>
     <li>勾选“选入试题篮”，在试题篮里预排版：拖动 ⋮⋮ 调整顺序，点击题目查看答案解析，“复制”后可以直接粘贴到 Word。</li>
-   </ol></div>`);
+    <li>点左上角“拾萃”随时回到工作台。</li>
+   </ol></details>`);
 }
 
 /* ---------- 筛选栏 ---------- */
@@ -1754,6 +1796,10 @@ main.addEventListener('click',async e=>{
   switch(act){
     case 'new': openEditor(null,ui.view==='section'?ui.sec:null); break;
     case 'openbook': { const id=a.dataset.id; ui.openBooks.add(id); renderTree(); break; }
+    case 'homenew': openEditor(null,a.dataset.sec); break;
+    case 'homenote': openNoteEditor(null,a.dataset.sec); break;
+    case 'homesearch': $('#topSearch').focus(); break;
+    case 'homesec': openSection(a.dataset.id); break;
     case 'gostatus': ui.sf=freshFilter(); ui.sf.status=[a.dataset.v]; go('search'); break;
     case 'ans': { const open=!ui.openAns.has(q.id); open?ui.openAns.add(q.id):ui.openAns.delete(q.id); card.classList.toggle('reveal',open); card.querySelector('.qans').hidden=!open; a.textContent=open?'收起答案解析':'查看答案解析'; a.classList.toggle('on',open); break; }
     case 'edit': openEditor(q); break;
