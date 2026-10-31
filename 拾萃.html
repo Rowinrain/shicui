@@ -48,7 +48,7 @@ header{display:flex;align-items:center;gap:12px;padding:0 18px;background:var(--
 .grade-switch button{flex:1;border:none;background:transparent;border-radius:8px;padding:4px 0;cursor:pointer;font-size:13px;color:#57544b}
 .grade-switch button.on{background:var(--panel);color:var(--accent-d);font-weight:600;box-shadow:var(--shadow)}
 .tree-title{font-size:12px;color:var(--muted);padding:2px 10px 8px}
-.t-book,.t-chap,.t-sec{display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:8px;cursor:pointer;user-select:none}
+.t-book,.t-chap,.t-sec{display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:8px;cursor:pointer;-webkit-user-select:none;user-select:none}
 .t-book{font-weight:600;margin-top:2px}
 .t-chap{padding-left:22px;font-size:13.5px}
 .t-sec{padding-left:40px;font-size:13px;color:#4a473f}
@@ -150,7 +150,7 @@ input[type=checkbox]{accent-color:var(--accent)}
 .t-judge{background:#eef1ea;color:#556348}.t-single{background:#f4ece2;color:#8a5a2b}.t-multi{background:#f6e6e0;color:#9a4a33}.t-fill{background:#e9eff2;color:#3f6273}.t-answer{background:#ebeef0;color:#4b5b66}.t-exp{background:#ece9f2;color:#5f4f7a}
 .lv1{background:#e9f0e6;color:#4d6b3f}.lv2{background:#eaf0ec;color:#466b58}.lv3{background:#f6efdc;color:#836521}.lv4{background:#f8e8dc;color:#9a5726}.lv5{background:#f6e0da;color:#a23c27}
 .meta-sec{color:var(--muted);font-size:12px}
-.pick{display:inline-flex;align-items:center;gap:5px;cursor:pointer;border:1px solid var(--line);border-radius:8px;padding:2px 10px;font-size:12.5px;user-select:none;background:var(--bg)}
+.pick{display:inline-flex;align-items:center;gap:5px;cursor:pointer;border:1px solid var(--line);border-radius:8px;padding:2px 10px;font-size:12.5px;-webkit-user-select:none;user-select:none;background:var(--bg)}
 .pick.on{background:var(--accent-w);border-color:var(--accent-b);color:var(--accent-d)}
 .pick input{margin:0}
 .bsel{display:inline-flex;align-items:center;gap:5px;margin-right:2px;cursor:pointer;font-size:12.5px;color:var(--muted)}
@@ -244,7 +244,7 @@ mark{background:#fbeaa0;color:inherit;padding:0 1px;border-radius:2px}
 .bitem.dragging{opacity:.4}
 .bitem.drop-before::before,.bitem.drop-after::after{content:"";position:absolute;left:10px;right:10px;height:3px;background:var(--accent);border-radius:2px}
 .bitem.drop-before::before{top:-6px}.bitem.drop-after::after{bottom:-6px}
-.drag{cursor:grab;color:var(--faint);text-align:center;user-select:none;padding-top:3px;letter-spacing:-2px;font-size:13px}
+.drag{cursor:grab;color:var(--faint);text-align:center;-webkit-user-select:none;user-select:none;padding-top:3px;letter-spacing:-2px;font-size:13px}
 .drag:hover{color:var(--accent)}
 .b-main{cursor:pointer;min-width:0}
 .b-q{display:flex;gap:4px}
@@ -416,7 +416,7 @@ pre{background:#fbf8f2;border:1px solid var(--line2);border-radius:10px;padding:
 <script>
 'use strict';
 const APP_VERSION=3; // 数据格式版本
-const PROGRAM_VERSION='3.1.0'; // 程序版本：发布新版时改大，写好 更新记录.md，再运行 tools/release.py 更新 latest.json
+const PROGRAM_VERSION='3.2.0'; // 程序版本：发布新版时改大，写好 更新记录.md，再运行 tools/release.py 更新 latest.json
 const TRASH_DAYS=30;
 /* ================= 教材目录（人教版 2019） ================= */
 const CATALOG_RAW = [
@@ -614,6 +614,39 @@ class MemStore{
   async listBackups(){ return [...this.bks.keys()].sort(); }
   async deleteBackup(n){ this.bks.delete(n); }
 }
+/* 浏览器内存储：Safari 等不支持读写本地文件夹的浏览器使用（数据存在浏览器自己的 IndexedDB 里） */
+const FS_OK='showDirectoryPicker' in window;
+const BROWSER_NAME=/Safari\//.test(navigator.userAgent)&&!/Chrome|Chromium|Edg|Firefox/.test(navigator.userAgent)?'Safari':'当前浏览器';
+class IDBStore{
+  constructor(db){ this.db=db; }
+  static open(){ return new Promise((res,rej)=>{ if(!window.indexedDB) return rej(new Error('浏览器不提供本地存储'));
+    const r=indexedDB.open('shicui-data',1);
+    r.onupgradeneeded=()=>{ for(const n of ['files','images','backups']) r.result.createObjectStore(n); };
+    r.onsuccess=async()=>{ const st=new IDBStore(r.result); try{ await st._put('files','.probe',String(Date.now())); res(st); }catch(e){ rej(e); } };
+    r.onerror=()=>rej(r.error||new Error('无法打开本地存储'));
+    r.onblocked=()=>rej(new Error('本地存储被占用，请关闭其他打开着拾萃的窗口后再试')); }); }
+  get name(){ return BROWSER_NAME==='Safari'?'Safari 浏览器内':'浏览器内'; }
+  get browser(){ return true; }
+  async init(){}
+  _tx(st,mode,fn){ return new Promise((res,rej)=>{ const tx=this.db.transaction(st,mode); const r=fn(tx.objectStore(st));
+    tx.oncomplete=()=>res(r?r.result:undefined); tx.onerror=()=>rej(tx.error||new Error('读写失败'));
+    tx.onabort=()=>rej(tx.error||new Error('写入没有完成（可能是存储空间不足）')); }); }
+  _get(st,k){ return this._tx(st,'readonly',o=>o.get(k)); }
+  _put(st,k,v){ return this._tx(st,'readwrite',o=>{ o.put(v,k); }); }
+  _del(st,k){ return this._tx(st,'readwrite',o=>{ o.delete(k); }); }
+  async _keys(st){ return ((await this._tx(st,'readonly',o=>o.getAllKeys()))||[]).map(String); }
+  async readText(n){ return (await this._get('files',n))??null; }
+  writeText(n,t){ return this._put('files',n,t); }
+  async writeImage(n,b){ return this._put('images',n,new Blob([await b.arrayBuffer()],{type:b.type||''})); }
+  async imageBlob(n){ const b=await this._get('images',n); if(!b) throw new Error('图片不存在：'+n); return b; }
+  async hasImage(n){ return !!(await this._tx('images','readonly',o=>o.count(n))); }
+  listImages(){ return this._keys('images'); }
+  deleteImage(n){ return this._del('images',n); }
+  async readBackup(n){ return (await this._get('backups',n))??null; }
+  writeBackup(n,t){ return this._put('backups',n,t); }
+  async listBackups(){ return (await this._keys('backups')).sort(); }
+  deleteBackup(n){ return this._del('backups',n); }
+}
 function idbOpen(){ return new Promise((res,rej)=>{ const r=indexedDB.open('qbank-meta',1); r.onupgradeneeded=()=>r.result.createObjectStore('kv'); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
 async function idbGet(k){ const db=await idbOpen(); return new Promise((res,rej)=>{ const r=db.transaction('kv').objectStore('kv').get(k); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
 async function idbSet(k,v){ const db=await idbOpen(); return new Promise((res,rej)=>{ const tx=db.transaction('kv','readwrite'); tx.objectStore('kv').put(v,k); tx.oncomplete=()=>res(); tx.onerror=()=>rej(tx.error); }); }
@@ -720,7 +753,7 @@ function persist(){ useMap=null; dirty=true; setStatus('保存中…'); clearTim
 function flush(){
   if(!dirty) return saving; dirty=false; const text=JSON.stringify(bank);
   saving=saving.then(()=>store.writeText('bank.json',text)).then(()=>{ if(!dirty) setStatus('已保存'); })
-    .catch(e=>{ console.error(e); dirty=true; setStatus('保存失败',true); alert('保存失败：'+e.message+'\n请确认数据文件夹仍然存在，并允许浏览器访问。'); });
+    .catch(e=>{ console.error(e); dirty=true; setStatus('保存失败',true); alert('保存失败：'+e.message+(store.browser?'\n可能是存储空间不足，请先导出完整备份。':'\n请确认数据文件夹仍然存在，并允许浏览器访问。')); });
   return saving;
 }
 window.addEventListener('beforeunload',e=>{ if(dirty){ flush(); e.preventDefault(); e.returnValue=''; } });
@@ -728,7 +761,7 @@ window.addEventListener('beforeunload',e=>{ if(dirty){ flush(); e.preventDefault
 /* ================= 启动 / 选择文件夹 ================= */
 async function boot(){
   if(new URLSearchParams(location.search).has('demo')){ store=new MemStore(); await openStore(true); return; }
-  if(!('showDirectoryPicker' in window)){ renderGate(null,'当前浏览器不支持读写本地文件夹，请用 Chrome 浏览器打开这个文件。'); return; }
+  if(!FS_OK){ await bootBrowser(); return; }
   let saved=null; try{ saved=await idbGet('root'); }catch(e){}
   if(saved){ try{ if(await saved.queryPermission({mode:'readwrite'})==='granted'){ await useHandle(saved); return; } }catch(e){} }
   renderGate(saved);
@@ -746,6 +779,53 @@ function renderGate(saved,msg){
   $('#gContinue')?.addEventListener('click',()=>useHandle(saved));
   $('#gPick')?.addEventListener('click',pickFolder);
 }
+/* ---------- Safari 等：数据存在浏览器里 ---------- */
+async function bootBrowser(){
+  let s; try{ s=await IDBStore.open(); }
+  catch(e){ console.error(e); renderBrowserGate(null,`${BROWSER_NAME}没有允许这个网页保存数据（${e.message}）。如果开着无痕浏览，请换成普通窗口；也可以改用 Chrome 打开。`); return; }
+  try{ navigator.storage&&navigator.storage.persist&&navigator.storage.persist(); }catch(e){}
+  let has=false; try{ has=!!(await s.readText('bank.json')); }catch(e){}
+  if(has){ store=s; await openStore(false); return; }
+  renderBrowserGate(s);
+}
+function renderBrowserGate(s,msg){
+  const g=$('#gate'); g.hidden=false; $('#app').hidden=true; const B=BROWSER_NAME==='Safari'?'Safari':'这个浏览器';
+  g.innerHTML=`<div class="gate-card">
+   <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#c96442" stroke-width="1.7" stroke-linecap="round"><path d="M7 3c0 6 10 6 10 12s-10 3-10 6"/><path d="M17 3c0 6-10 6-10 12s10 3 10 6"/><path d="M9 6h6M9 18h6M10.5 12h3"/></svg>
+   <h1>拾萃</h1><div class="muted" style="margin:-4px 0 10px">高中生物好题本</div>
+   ${msg?`<p class="warn">${esc(msg)}</p>`:`<p class="muted">${B}不能直接读写电脑上的文件夹，所以题目和图片会保存在${B}自己的存储空间里，只有在这台电脑的${B}里打开才看得到。</p>
+   <p class="warn" style="text-align:left">请定期在“设置”里点“导出完整备份”，存到 U 盘或网盘：在${B}里清除网站数据时，题库会被一起删除。</p>
+   <button class="btn primary big" id="gStart">开始使用</button>
+   <button class="btn big" id="gImport">导入数据文件夹或备份</button>
+   <p class="hint" style="margin-top:14px">在 Chrome 里用过拾萃：点“导入数据文件夹或备份”，选中原来的数据文件夹（里面有 bank.json），就能把题库搬过来。<br>以前在${B}里用过、这里却是空的：请确认打开的是原来位置的 拾萃.html。</p>`}</div>`;
+  $('#gStart')?.addEventListener('click',async()=>{ store=s; await openStore(false); });
+  $('#gImport')?.addEventListener('click',async()=>{
+    const kind=await choose('导入题库','要导入哪一种？\n\n数据文件夹：Chrome 版拾萃使用的文件夹，里面有 bank.json 和 images。\n备份文件：“导出完整备份”得到的 .json 文件，或 backups 里的自动备份。',[{label:'取消',value:null},{label:'备份文件',value:'file'},{label:'数据文件夹',value:'folder',primary:true}]);
+    if(!kind) return;
+    const data=kind==='folder'?await readDataFolder():await readBackupFile(); if(!data) return;
+    store=s; await openStore(false); await restoreBank(data.bank,data.images);
+  });
+}
+function pickFolderFiles(){ return new Promise(res=>{ const i=document.createElement('input'); i.type='file'; i.webkitdirectory=true; i.multiple=true; i.hidden=true; document.body.appendChild(i); i.onchange=()=>{ res([...i.files]); i.remove(); }; i.click(); }); }
+/* 读取 Chrome 版的数据文件夹（只读）：bank.json + images/ */
+async function readDataFolder(){
+  const files=await pickFolderFiles(); if(!files.length) return null;
+  const parts=f=>(f.webkitRelativePath||f.name).split('/');
+  const bj=files.filter(f=>f.name==='bank.json').sort((a,b)=>parts(a).length-parts(b).length)[0];
+  if(!bj){ alert('这个文件夹里没有 bank.json，不是拾萃的数据文件夹。请选中里面有 bank.json 和 images 的那个文件夹。'); return null; }
+  let nb; try{ nb=JSON.parse(await bj.text()); }catch(e){ alert('bank.json 读取失败，可能已损坏：'+e.message); return null; }
+  const base=parts(bj).slice(0,-1).join('/'), images={};
+  for(const f of files){ const pp=parts(f); if(pp.length===parts(bj).length+1&&pp[pp.length-2]==='images'&&pp.slice(0,-2).join('/')===base&&!f.name.startsWith('.')) images[f.name]=f; }
+  return {bank:nb,images};
+}
+async function readBackupFile(){
+  const file=await pickFile('.json,application/json'); if(!file) return null;
+  let data; try{ data=JSON.parse(await file.text()); }catch(e){ alert('这个文件不是有效的 JSON 文件。'); return null; }
+  if(data.format==='qbank-full') return {bank:data.bank,images:data.images||{}};
+  if(Array.isArray(data.questions)&&Array.isArray(data.tags)) return {bank:data,images:{}};
+  alert('无法识别这个文件。请选择“导出完整备份”得到的文件，或每日自动备份（bank-日期.json）。'); return null;
+}
+async function importFolderIntoBank(){ const d=await readDataFolder(); if(d) await restoreBank(d.bank,d.images); }
 async function pickFolder(){
   let h; try{ h=await window.showDirectoryPicker({id:'qbank',mode:'readwrite'}); }catch(e){ if(e.name!=='AbortError') alert('无法打开文件夹：'+e.message); return; }
   try{
@@ -792,6 +872,7 @@ async function openStore(demo){
   let updated=null; try{ updated=sessionStorage.getItem('shicui-updated'); sessionStorage.removeItem('shicui-updated'); }catch(e){}
   if(upgraded) toast('已升级到新版数据格式（升级前已自动备份）');
   else if(updated) toast(`已更新到 v${PROGRAM_VERSION}`);
+  else if(!demo) exportReminder();
 }
 async function dailyBackup(){
   const name=`bank-${today()}.json`;
@@ -899,7 +980,7 @@ function newTopic(){ const n=prompt('新专题名称（例如：实验专题、�
 function renderHome(){
   const c=countsAll(); const qs=bank.questions.filter(inGrade);
   const cnt=(fn)=>qs.filter(fn).length;
-  setMain(`<div class="hero"><h2>拾萃 · 高中生物好题本</h2><div class="muted">人教版（2019）必修1 – 选择性必修3 · 数据文件夹：${esc(store.name)}${ui.grade!=='all'?` · 当前只看 <b>${ui.grade}</b>`:''}</div></div>
+  setMain(`<div class="hero"><h2>拾萃 · 高中生物好题本</h2><div class="muted">人教版（2019）必修1 – 选择性必修3 · ${store.browser?'数据保存在':'数据文件夹：'}${esc(store.name)}${ui.grade!=='all'?` · 当前只看 <b>${ui.grade}</b>`:''}</div></div>
   <div class="stat-row">
     <div class="stat"><div class="sv">${qs.length}</div><div class="sl">道题目</div></div>
     <div class="stat"><div class="sv">${bank.notes.length}</div><div class="sl">篇知识笔记</div></div>
@@ -1367,7 +1448,14 @@ function answerCopyHTML(q,num){
   if(hasContent(q.extra)) h+=`<div>【补充】${inlineize(q.extra)}</div>`;
   return h;
 }
-async function copyHTML(html){
+function copyHTML(html){
+  // Safari 只允许在点击的同一时刻写剪贴板：先同步调用 clipboard.write，内容（含图片转换）以 Promise 传入
+  const ready=buildCopy(html);
+  let w; try{ w=navigator.clipboard.write([new ClipboardItem({'text/html':ready.then(r=>new Blob([r.out],{type:'text/html'})),'text/plain':ready.then(r=>new Blob([r.plain],{type:'text/plain'}))})]); }catch(e){ w=Promise.reject(e); }
+  return w.then(()=>toast('已复制，可以粘贴到 Word'))
+    .catch(async()=>{ try{ const r=await ready; await navigator.clipboard.writeText(r.plain); toast('已复制（纯文本）'); }catch(e2){ alert('复制失败：'+e2.message); } });
+}
+async function buildCopy(html){
   const d=document.createElement('div'); d.innerHTML=html;
   for(const img of d.querySelectorAll('img[data-img]')){
     try{ const b=await store.imageBlob(img.dataset.img); const bmp=await createImageBitmap(b); img.src=await blobToDataURL(b); img.width=Math.min(Math.round(bmp.width/2),420); img.removeAttribute('data-img'); }
@@ -1377,8 +1465,7 @@ async function copyHTML(html){
   d.querySelectorAll('td,th').forEach(c=>c.style.padding='2px 8px');
   const out=d.innerHTML;
   const plain=htmlToText(out.replace(/<br\s*\/?>/gi,'\n').replace(/<\/div>/gi,'\n')).replace(/\n{3,}/g,'\n\n').trim();
-  try{ await navigator.clipboard.write([new ClipboardItem({'text/html':new Blob([out],{type:'text/html'}),'text/plain':new Blob([plain],{type:'text/plain'})})]); toast('已复制，可以粘贴到 Word'); }
-  catch(e){ try{ await navigator.clipboard.writeText(plain); toast('已复制（纯文本）'); }catch(e2){ alert('复制失败：'+e2.message); } }
+  return {out,plain};
 }
 function copyAll(withAns){
   const list=basketOrdered(); let h='',num=0;
@@ -1432,9 +1519,9 @@ async function fetchLatest(log){
   const groups=new Map(); ok.forEach(r=>{ const k=r.d.version+'|'+r.d.sha256; if(!groups.has(k)) groups.set(k,[]); groups.get(k).push(r); });
   const best=[...groups.values()].filter(g=>g.length>=2).sort((a,b)=>cmpVer(b[0].d.version,a[0].d.version))[0];
   if(best){ const names=best.map(r=>r.s.name); log(`${names.join('、')} 的更新信息一致`); return {info:best[0].d,via:names.join('、'),order:[...best.map(r=>r.s),...src.filter(s=>!names.includes(s.name))]}; }
-  if(ok.length===1) throw new Error('只有一个加速地址能连上，无法核对更新信息。为安全起见没有继续，请稍后再试，或用“选择新版 拾萃.html 更新”。');
+  if(ok.length===1) throw new Error('只有一个加速地址能连上，无法核对更新信息。为安全起见没有继续，请稍后再试'+(window.showOpenFilePicker?'，或用“选择新版 拾萃.html 更新”':'')+'。');
   if(ok.length) throw new Error('各个加速地址给出的更新信息不一致，为安全起见没有继续，请稍后再试。');
-  throw new Error('连不上 GitHub，也连不上国内加速地址。请检查网络后再试，或用“选择新版 拾萃.html 更新”。');
+  throw new Error('连不上 GitHub，也连不上国内加速地址。请检查网络后再试'+(window.showOpenFilePicker?'，或用“选择新版 拾萃.html 更新”':'')+'。');
 }
 async function downloadProgram(latest,log,stage){
   for(const s of latest.order){
@@ -1486,13 +1573,14 @@ async function installProgram(h,text,newVer,log,stage){
   setTimeout(()=>location.reload(),1200);
 }
 const UPD_STAGES={online:[['program','确认程序文件'],['manifest','获取更新信息'],['download','下载新版程序'],['verify','校验 sha256'],['backup','备份旧版程序'],['install','替换 拾萃.html'],['restart','重新打开']],
+  dl:[['manifest','获取更新信息'],['download','下载新版程序'],['verify','校验 sha256'],['done','保存并替换']],
   file:[['program','确认程序文件'],['check','检查新版文件'],['backup','备份旧版程序'],['install','替换 拾萃.html'],['restart','重新打开']]};
 let updBusy=false;
 function updProgress(kind){
   const box=$('#updProgress'); const lines=[]; let cur=UPD_STAGES[kind][0][0], msg='', err='';
   const draw=()=>{ if(!box) return; const keys=UPD_STAGES[kind].map(s=>s[0]), ci=keys.indexOf(cur);
     box.hidden=false;
-    box.innerHTML=`<ol class="upd-steps">${UPD_STAGES[kind].map(([k,n],i)=>`<li class="${i<ci||(cur==='restart'&&!err)?'done':i===ci?(err?'err':'on'):''}">${n}</li>`).join('')}</ol>
+    box.innerHTML=`<ol class="upd-steps">${UPD_STAGES[kind].map(([k,n],i)=>`<li class="${i<ci||((cur==='restart'||cur==='done')&&!err)?'done':i===ci?(err?'err':'on'):''}">${n}</li>`).join('')}</ol>
       ${err?`<div class="warn">更新没有完成：${esc(err)}</div>`:`<div class="upd-msg">${esc(msg)}</div>`}
       ${lines.length?`<details ${err?'open':''}><summary class="hint">详细过程</summary><div class="upd-log">${lines.map(esc).join('<br>')}</div></details>`:''}`; };
   draw();
@@ -1516,6 +1604,7 @@ async function checkUpdate(){
 }
 async function runOnlineUpdate(latest){
   if(updBusy) return;
+  if(!window.showOpenFilePicker) return runDownloadUpdate(latest);
   const h=await programHandle(false); if(!h) return; // 先在点击时拿到权限，下载完成后再写入
   updBusy=true; $('#updRes').innerHTML=''; const p=updProgress('online');
   try{
@@ -1523,6 +1612,24 @@ async function runOnlineUpdate(latest){
     const text=await downloadProgram(latest,p.log,p.stage);
     await installProgram(h,text,latest.info.version,p.log,p.stage);
   }catch(e){ console.error(e); p.log('失败：'+(e.message||e)); p.fail(e); updBusy=false; }
+}
+/* Safari 等不能替换文件：下载并校验新版后，保存到“下载”文件夹，由用户在访达里替换 */
+async function runDownloadUpdate(latest){
+  updBusy=true; $('#updRes').innerHTML=''; const p=updProgress('dl');
+  try{
+    p.log(`最新版本 v${latest.info.version}（更新信息来自 ${latest.via}）`);
+    const text=await downloadProgram(latest,p.log,p.stage);
+    const fname=latest.info.file||PROGRAM_FILE, path=programPathHint();
+    p.stage('done','新版已下载并通过校验');
+    $('#updRes').innerHTML=`<div class="upd-new">新版 v${esc(latest.info.version)} 已下载并通过 sha256 校验。${BROWSER_NAME==='Safari'?'Safari':'这个浏览器'}不能直接替换程序文件，请按下面的步骤手动替换：
+      <ol style="margin:6px 0 0;padding-left:20px"><li>点“保存新版 拾萃.html”，文件会存到“下载”文件夹（如果文件名不是 拾萃.html，请先把它改成 拾萃.html）。</li>
+      <li>在访达里把它拖到原来 拾萃.html 所在的文件夹，选择“替换”。${path?`<br><span class="hint">原来的位置：${esc(path)}</span>`:''}</li>
+      <li>关掉这个页面，重新打开<b>原来位置</b>的 拾萃.html。不要直接打开“下载”里的那个，否则可能看不到题库。</li></ol>
+      <div class="hint">题库保存在浏览器里，替换程序文件不会影响题库。</div></div>
+      <div class="btn-row" style="margin-top:8px"><button class="btn primary" id="updSave">保存新版 拾萃.html</button></div>`;
+    $('#updSave').onclick=()=>{ downloadText(text,fname,'text/html'); toast('已保存到“下载”文件夹'); };
+  }catch(e){ console.error(e); p.log('失败：'+(e.message||e)); p.fail(e); }
+  updBusy=false;
 }
 async function updateFromFile(){
   if(updBusy) return;
@@ -1539,6 +1646,11 @@ async function updateFromFile(){
 }
 function updatePanelHTML(){
   const path=programPathHint();
+  if(!window.showOpenFilePicker) return `<div class="panel"><div class="panel-title">程序更新 <span class="hint">更新只替换 拾萃.html，题库不受影响</span></div>
+    <p style="margin:0 0 6px">当前版本：<b>v${PROGRAM_VERSION}</b>${path?`<span class="hint">　程序文件：${esc(path)}</span>`:''}</p>
+    <div class="btn-row"><button class="btn primary" data-act="updcheck">检查更新</button></div>
+    <div id="updRes" style="margin-top:8px"></div><div id="updProgress" hidden></div>
+    <p class="hint" style="margin:8px 0 0">“检查更新”需要联网，会从 GitHub 获取新版（连不上时自动改用国内加速地址，并核对 sha256 校验值）。${BROWSER_NAME==='Safari'?'Safari':'这个浏览器'}不能直接替换程序文件：下载好新版后，需要在访达里用它替换原来的 拾萃.html。</p></div>`;
   return `<div class="panel"><div class="panel-title">程序更新 <span class="hint">更新只替换 拾萃.html，数据文件夹不受影响</span></div>
     <p style="margin:0 0 6px">当前版本：<b>v${PROGRAM_VERSION}</b>${path?`<span class="hint">　程序文件：${esc(path)}</span>`:''}</p>
     <div class="btn-row"><button class="btn primary" data-act="updcheck">检查更新</button><button class="btn" data-act="updfile">选择新版 拾萃.html 更新</button><button class="btn ghost small" data-act="updpick">重新选择程序文件</button></div>
@@ -1546,15 +1658,34 @@ function updatePanelHTML(){
     <p class="hint" style="margin:8px 0 0">“检查更新”需要联网，会从 GitHub 获取新版（连不上时自动改用国内加速地址，并核对 sha256 校验值）。第一次更新时需要选中正在使用的 拾萃.html，之后会记住。更新前，旧版程序会备份到数据文件夹的 backups 里。没有网络时，可以把新版 拾萃.html 拷到电脑上，再点“选择新版 拾萃.html 更新”。</p></div>`;
 }
 
+function browserDataPanelHTML(){
+  const B=BROWSER_NAME==='Safari'?'Safari':'浏览器';
+  return `<div class="panel"><div class="panel-title">数据保存位置</div>
+    <p style="margin:0 0 6px">题目、笔记和图片保存在<b>${B}自己的存储空间</b>里（${B}不能直接读写电脑上的文件夹）。每天第一次打开时也会在这里自动备份一份（保留最近 14 天）。</p>
+    <p class="warn" style="margin:0 0 10px">在${B}里清除网站数据时，题库会被一起删除；换电脑、换浏览器也看不到。请定期导出完整备份，存到 U 盘或网盘。${lastExportText()}</p>
+    <div class="btn-row"><button class="btn primary" data-act="export">导出完整备份（含图片）</button><button class="btn" data-act="importfolder">从数据文件夹导入</button></div>
+    <p class="hint" style="margin:8px 0 0">从 Chrome 搬到${B}：点“从数据文件夹导入”，选中 Chrome 版使用的数据文件夹（里面有 bank.json 和 images）。从${B}搬回 Chrome：在这里导出完整备份，再在 Chrome 版的“设置 → 导入”里导入这个文件。</p></div>`;
+}
+function lastExportText(){ const d=lastExportDate; return d?`上次导出：${d}。`:'还没有导出过。'; }
+let lastExportDate=null;
+/* 数据存在浏览器里时：超过 7 天没导出完整备份就提醒一次 */
+async function exportReminder(){
+  if(!store.browser) return;
+  try{ lastExportDate=await store.readText('last-export'); }catch(e){}
+  if(!bank.questions.length&&!bank.notes.length) return;
+  const days=lastExportDate?Math.floor((new Date(today())-new Date(lastExportDate))/864e5):Infinity;
+  if(days>=7) setTimeout(()=>toast(lastExportDate?`已有 ${days} 天没有导出完整备份，建议在“设置”里导出一份`:'题库保存在浏览器里，建议在“设置”里导出完整备份'),1500);
+}
+
 /* ---------- 设置 ---------- */
 function renderSettings(){
   const s=bank.settings;
   const scores=[['judge','判断题 · 每个判断'],['single','单选题'],['multi','多选题'],['fill','填空题 · 每空'],['sub','解答/实验题 · 每个小问'],['answer','解答题（没有小问时整题）'],['exp','实验题（没有小问时整题）']];
   setMain(`<div class="view-head"><h2>设置</h2></div>
-  <div class="panel"><div class="panel-title">数据文件夹</div>
+  ${store.browser?browserDataPanelHTML():`<div class="panel"><div class="panel-title">数据文件夹</div>
     <p style="margin:0 0 6px">当前文件夹：<b>${esc(store.name)}</b></p>
     <p class="hint" style="margin:0 0 10px">题目和笔记在 bank.json，图片在 images 文件夹；每天第一次打开时会在 backups 里自动备份一份（保留最近 14 天），每次导入前也会自动备份。整个文件夹就是完整的题库，复制它就等于备份或迁移。</p>
-    <div class="btn-row"><button class="btn" data-act="changefolder">更换文件夹</button><span class="hint">更换后会读取新文件夹里的题库。想把现有题库搬过去，请先在访达里复制整个文件夹，再选中复制后的文件夹。</span></div></div>
+    <div class="btn-row"><button class="btn" data-act="changefolder">更换文件夹</button><span class="hint">更换后会读取新文件夹里的题库。想把现有题库搬过去，请先在访达里复制整个文件夹，再选中复制后的文件夹。</span></div></div>`}
   ${updatePanelHTML()}
   <div class="panel"><div class="panel-title">默认分值 <span class="hint">题目加入试题篮时使用，之后可以逐题修改</span></div>
     <div class="set-grid">${scores.map(([k,l])=>`<label>${l}<span><input type="number" min="0" step="0.5" data-set="score.${k}" value="${s.score[k]}"> 分</span></label>`).join('')}</div></div>
@@ -1574,13 +1705,16 @@ async function saveFile(text,fname){
   if(window.showSaveFilePicker){
     try{ const h=await showSaveFilePicker({suggestedName:fname,types:[{description:'JSON',accept:{'application/json':['.json']}}]}); const w=await h.createWritable(); await w.write(text); await w.close(); toast('已导出'); }
     catch(e){ if(e.name!=='AbortError') alert('导出失败：'+e.message); }
-  }else{ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([text],{type:'application/json'})); a.download=fname; a.click(); }
+  }else{ downloadText(text,fname,'application/json'); toast('已保存到“下载”文件夹'); }
+  return true;
 }
+function downloadText(text,fname,type){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([text],{type})); a.download=fname; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),60000); }
 async function exportFull(){
   await flush();
   const names=usedImageNames();
   const images={}; for(const n of names){ try{ images[n]=await blobToDataURL(await store.imageBlob(n)); }catch(e){} }
   await saveFile(JSON.stringify({format:'qbank-full',exported:new Date().toISOString(),bank,images}),`拾萃完整备份-${today()}.json`);
+  if(store.browser){ lastExportDate=today(); try{ await store.writeText('last-export',lastExportDate); }catch(e){} if(ui.view==='settings') render(); }
 }
 function exportText(){
   const T=h=>htmlToText((h||'').replace(SLOT,'（　）').replace(/<u class="blank(?: miss)?">([\s\S]*?)<\/u>/g,'【$1】').replace(/<br\s*\/?>/gi,'\n').replace(/<\/(p|div)>/gi,'\n')).trim();
@@ -1606,11 +1740,19 @@ async function restoreOrImport(){
   if(data.format==='qbank-full'){ nb=data.bank; images=data.images||{}; }
   else if(Array.isArray(data.questions)&&Array.isArray(data.tags)) nb=data;
   else { alert('无法识别这个文件。请选择导入文件、更新文件、完整备份或每日自动备份（bank-日期.json）。'); return; }
-  const mode=await choose('从备份恢复',`备份中有 ${nb.questions.length} 道题、${(nb.notes||[]).length} 篇笔记、${nb.tags.length} 个 tag。\n\n合并：保留现有内容，只加入备份中没有的题、笔记、专题和 tag。\n覆盖：用备份完全替换当前题库（会先自动备份当前题库）。`,[{label:'取消',value:null},{label:'覆盖',value:'over',danger:true},{label:'合并',value:'merge',primary:true}]);
+  await restoreBank(nb,images);
+}
+/* 用备份（或数据文件夹）恢复：images 的值可以是 data URL 或 Blob */
+async function restoreBank(nb,images){
+  if(!nb||!Array.isArray(nb.questions)||!Array.isArray(nb.tags)){ alert('无法识别这份题库数据。'); return; }
+  const empty=!bank.questions.length&&!bank.notes.length&&!bank.trash.length;
+  const mode=empty?'over':await choose('从备份恢复',`备份中有 ${nb.questions.length} 道题、${(nb.notes||[]).length} 篇笔记、${nb.tags.length} 个 tag。\n\n合并：保留现有内容，只加入备份中没有的题、笔记、专题和 tag。\n覆盖：用备份完全替换当前题库（会先自动备份当前题库）。`,[{label:'取消',value:null},{label:'覆盖',value:'over',danger:true},{label:'合并',value:'merge',primary:true}]);
   if(!mode) return;
-  for(const [n,u] of Object.entries(images)){ try{ if(!(await store.hasImage(n))) await store.writeImage(n,await (await fetch(u)).blob()); }catch(e){ console.warn(e); } }
+  let failImg=0;
+  for(const [n,u] of Object.entries(images||{})){ try{ if(!(await store.hasImage(n))) await store.writeImage(n,u instanceof Blob?u:await (await fetch(u)).blob()); }catch(e){ console.warn(e); failImg++; } }
+  if(failImg) alert(`有 ${failImg} 张图片没能保存，可能是存储空间不足。`);
   await flush(); await store.writeBackup(`before-restore-${Date.now()}.json`,JSON.stringify(bank));
-  if(mode==='over'){ normalizeBank(nb); reindexAll(); persist(); toast('已用备份覆盖当前题库'); }
+  if(mode==='over'){ normalizeBank(nb); reindexAll(); persist(); toast(empty?`已导入 ${bank.questions.length} 道题、${bank.notes.length} 篇笔记`:'已用备份覆盖当前题库'); }
   else{
     const old=bank; const incoming=normalizeBank(clone(nb)); bank=old;
     const has=(arr,id)=>arr.some(x=>x.id===id); let addQ=0,addN=0,addT=0;
@@ -1824,6 +1966,7 @@ main.addEventListener('click',async e=>{
     case 'paperdel': { const p=paperOf(a); const ok=await choose('删除试卷',`确定删除试卷「${p.name}」吗？只删除这份试卷的记录，题目本身不受影响；这些题的“已用于”次数会相应减少。`,[{label:'取消',value:false},{label:'删除',value:true,danger:true}]); if(!ok) return;
       bank.papers=bank.papers.filter(x=>x!==p); if(bank.basketPaper===p.id) bank.basketPaper=''; persist(); render(); break; }
     case 'changefolder': await flush(); pickFolder(); break;
+    case 'importfolder': await flush(); importFolderIntoBank(); break;
     case 'export': exportFull(); break;
     case 'exporttext': exportText(); break;
     case 'import': restoreOrImport(); break;

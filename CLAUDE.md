@@ -10,7 +10,8 @@
 
 ## 硬性要求
 
-- 数据只存放在用户选定的文件夹（File System Access API），不得读写其他位置；唯一例外是在线更新时写入用户选中的 拾萃.html。只支持 Chrome / Edge 桌面版。
+- Chrome / Edge：数据只存放在用户选定的文件夹（File System Access API，`FSStore`），不得读写其他位置；唯一例外是在线更新时写入用户选中的 拾萃.html。
+- Safari 等没有 `showDirectoryPicker` 的浏览器（`FS_OK` 为假）：数据存在浏览器的 IndexedDB `shicui-data`（`IDBStore`，`store.browser` 为真），可从 Chrome 数据文件夹只读导入（webkitdirectory）、导出完整备份，超过 7 天没导出会提醒；在线更新改为下载校验后由用户手动替换文件。改动存储或更新逻辑时两条路径都要测。
 - 只有“检查更新”时联网，不要加其他联网功能，也不要在启动时自动联网。
 - 界面里任何地方都不要提到 Claude、AI 等，只写基础操作说明。
 - 题干里不显示答案：选择/判断题末尾显示空的（　　），填空显示空白下划线；答案、曾选错/判错/答错的标记只出现在答案区。
@@ -47,6 +48,8 @@
 3. 运行 `python3 tools/release.py` 重新生成 latest.json，一起提交。GitHub Actions 会用 `--check` 检查三者是否一致；拾萃.html 改了但 latest.json 没重新生成，用户更新时 sha256 会校验失败。
 
 ## 测试
+
+模拟 Safari：在 `addInitScript` 里删掉 `Window.prototype.showDirectoryPicker`、`showOpenFilePicker`、`showSaveFilePicker`（环境里装不了 WebKit）。注意 Playwright 给 webkitdirectory 传中文文件夹名会卡住，测试文件夹用英文名。
 
 用 Playwright（环境已预装 Chromium）打开 `拾萃.html?demo`（内存中的演示数据，不读写文件夹）；测试真实读写可用 `navigator.storage.getDirectory()` 代替用户文件夹并调用 `useHandle`。
 
