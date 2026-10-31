@@ -30,7 +30,7 @@
 - `notes[]`：`{id, sec, title, body}`；`topics[]`：综合专题；`basket[]`：试题篮 `{qid, score, subScores?}`。
 - `papers[]`：保存的试卷 `{id, name, date, entries}`（entries 同 basket），题目“已用于几份试卷”由它统计；`basketPaper` 为试题篮当前对应的试卷 id。
 - `trash[]`：回收站 `{kind: 'q'|'n', deleted, item}`，打开时清除超过 30 天的；清理图片时也算作在用。
-- `settings.print`：上次的打印选项。
+- `settings.print`：上次的导出试卷选项（版式、答案位置、纸张等，旧版的 `content` 会自动换算成 `ans`）。
 
 ## 导入与更新文件
 
