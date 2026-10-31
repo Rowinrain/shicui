@@ -5,7 +5,6 @@
 ## 结构
 
 - `拾萃.html`：整个程序，单文件（HTML + CSS + JS 都在一个文件里），无依赖、无构建步骤、不联网。修改后直接替换这个文件发布。
-- `桌面窗口/`：创建桌面图标的脚本（macOS `.command` 生成 ~/Applications/拾萃.app；Windows `.cmd` 调用 `windows-setup.ps1` 生成快捷方式），都是用 Chrome/Edge 的 `--app=file:///…/拾萃.html` 打开独立窗口，程序本身不变。`.ps1` 必须是 UTF-8 带 BOM、CRLF；`.cmd` 只用 ASCII。
 - `latest.json` / `更新记录.md` / `tools/release.py`：在线更新（见下）。
 - `tools/word-import/`：Word 题目文档 → 导入 JSON 的 Python 脚本（extract → segment → convert，分节和 tag 写在 mapping.py）。
 
