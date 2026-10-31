@@ -26,7 +26,10 @@
   - 填空：`<u class="blank">答案</u>`，答错为 `<u class="blank miss">`。
   - `primary` 为主节编号“书-章-节”（综合专题为 `Z-0-<id>`），`tags` 为 tag id；`tagsPending`、`levelUnset`、`review`（导入备注）、`missed`、`grade`（高一/高二/高三）、`source`、`qno`、`adapted`。
 - `tags[]`：`{id, sec, name}`，每节独立的 tag 库；题目借用其他节的 tag 即算跨节。
-- `notes[]`：`{id, sec, title, body}`；`topics[]`：综合专题；`basket[]`：试题篮。
+- `notes[]`：`{id, sec, title, body}`；`topics[]`：综合专题；`basket[]`：试题篮 `{qid, score, subScores?}`。
+- `papers[]`：保存的试卷 `{id, name, date, entries}`（entries 同 basket），题目“已用于几份试卷”由它统计；`basketPaper` 为试题篮当前对应的试卷 id。
+- `trash[]`：回收站 `{kind: 'q'|'n', deleted, item}`，打开时清除超过 30 天的；清理图片时也算作在用。
+- `settings.print`：上次的打印选项。
 
 ## 导入与更新文件
 
