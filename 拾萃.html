@@ -31,15 +31,19 @@ a{color:var(--miss)}
 /* ---------- 布局 ---------- */
 #app{display:grid;grid-template-rows:54px 1fr;height:100vh}
 header{display:flex;align-items:center;gap:12px;padding:0 18px;background:var(--side);border-bottom:1px solid var(--line)}
-.brand{font-family:var(--serif);font-weight:600;font-size:18px;cursor:pointer;display:flex;align-items:center;gap:9px;white-space:nowrap;width:262px}
+.brand{font-family:var(--serif);font-weight:600;font-size:18px;cursor:pointer;display:flex;align-items:center;gap:9px;white-space:nowrap;width:calc(var(--side-w,300px) - 38px)}
 .brand svg{flex:none}
 .top-search{flex:1;max-width:520px}
 .top-search input{width:100%;padding:7px 14px;border:1px solid var(--line);border-radius:10px;background:var(--panel);outline:none}
 .top-search input:focus{border-color:var(--accent-b);box-shadow:0 0 0 3px var(--accent-w)}
 #saveStatus{font-size:12px;color:var(--muted);white-space:nowrap}
 #saveStatus.err{color:var(--danger);font-weight:600}
-.layout{display:grid;grid-template-columns:300px 1fr;min-height:0}
-#side{background:var(--side);border-right:1px solid var(--line);overflow:auto;padding:12px 10px 60px}
+.layout{display:grid;grid-template-columns:var(--side-w,300px) 1fr;min-height:0;position:relative}
+#side{background:var(--side);border-right:1px solid var(--line);overflow:auto;scrollbar-gutter:stable;padding:12px 10px 60px}
+#sideResize{position:absolute;top:0;bottom:0;left:calc(var(--side-w,300px) - 4px);width:8px;cursor:col-resize;z-index:5}
+#sideResize::after{content:'';position:absolute;top:0;bottom:0;left:3px;width:2px;background:transparent;transition:background .15s}
+#sideResize:hover::after,#sideResize.on::after{background:var(--accent-b)}
+body.side-dragging{cursor:col-resize;user-select:none}
 #main{overflow:auto;padding:26px 32px 120px}
 .main-inner{max-width:980px;margin:0 auto}
 
@@ -329,6 +333,13 @@ details.panel[open]>summary:before{transform:rotate(90deg)}
 .ti-meta{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:4px}
 .ti-text{line-height:1.7}
 .pp-name{font-family:var(--serif);font-size:17px;font-weight:600}
+.paper[data-xid] .pp-main{cursor:default}
+.ex-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 14px}
+.ex-head{display:flex;align-items:center;gap:6px;margin:20px 2px 10px;padding-bottom:6px;border-bottom:1px solid var(--line);font-family:var(--serif);font-size:16px}
+.ex-head .icon,.exq .qactions .icon{opacity:.55}.ex-head:hover .icon,.exq:hover .qactions .icon{opacity:1}
+.exno{font-family:var(--serif);font-weight:700;font-size:16px;min-width:22px;color:var(--text)}
+.badge.inbank{background:#e9f0e6;color:#4d6b3f;cursor:pointer}
+.ex-tip{background:var(--accent-w);border:1px solid var(--accent-b);color:var(--accent-d);border-radius:9px;padding:6px 10px;font-size:12.5px;margin:2px 0 10px}
 .badge.used{background:#efeae0;color:#6b5a3a}
 .dup-item{border:1px solid var(--line2);border-radius:10px;padding:8px 10px;margin-bottom:6px;font-size:13px;line-height:1.7}
 .dup-item .hint{display:block}
@@ -344,8 +355,12 @@ details.panel[open]>summary:before{transform:rotate(90deg)}
 .bulkbar b{font-weight:600}
 
 /* ---------- 设置 ---------- */
-.set-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px 18px}
-.set-grid label{display:flex;align-items:center;justify-content:flex-start;gap:10px;font-size:13.5px}
+.set-grid{display:grid;grid-template-columns:repeat(3,max-content max-content);gap:8px 10px;align-items:center;font-size:13.5px}
+.set-grid label{display:contents}
+.set-grid label>span,.set-grid label>input{margin-right:44px}
+.set-grid input[type=number]{width:58px}
+.set-grid input[data-set^="coef."]{width:66px}
+@media (max-width:1100px){.set-grid{grid-template-columns:repeat(2,max-content max-content)}}
 details{margin-top:10px}
 summary{cursor:pointer;color:var(--accent-d);font-size:13.5px}
 pre{background:#fbf8f2;border:1px solid var(--line2);border-radius:10px;padding:12px 14px;font-size:12px;line-height:1.6;overflow:auto;white-space:pre}
@@ -434,17 +449,20 @@ pre{background:#fbf8f2;border:1px solid var(--line2);border-radius:10px;padding:
   <header>
     <div class="brand" data-nav="home" title="回到工作台">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#c96442" stroke-width="1.8" stroke-linecap="round"><path d="M7 3c0 6 10 6 10 12s-10 3-10 6"/><path d="M17 3c0 6-10 6-10 12s10 3 10 6"/><path d="M9 6h6M9 18h6M10.5 12h3"/></svg>
-      拾萃<span class="hint" style="margin-left:2px">高中生物好题本</span>
+      拾萃
     </div>
     <div class="top-search"><input id="topSearch" placeholder="全库搜索：输入关键词后按回车"></div>
     <span class="sp"></span>
     <span id="saveStatus"></span>
+    <button class="btn ghost" data-nav="home">工作台</button>
+    <button class="btn ghost" data-nav="exams">整卷</button>
     <button class="btn ghost" data-nav="papers">试卷</button>
     <button class="btn ghost" data-nav="basket">试题篮<span class="count" id="basketCount">0</span></button>
     <button class="btn ghost" data-nav="settings">设置</button>
   </header>
   <div class="layout">
     <nav id="side"><div class="grade-switch" id="gradeSwitch"></div><div class="tree-title">人教版（2019）· 目录</div><div id="tree"></div></nav>
+    <div id="sideResize" title="拖动调节目录宽度，双击恢复默认"></div>
     <main id="main"></main>
   </div>
 </div>
@@ -457,8 +475,8 @@ pre{background:#fbf8f2;border:1px solid var(--line2);border-radius:10px;padding:
 
 <script>
 'use strict';
-const APP_VERSION=3; // 数据格式版本
-const PROGRAM_VERSION='3.3.0'; // 程序版本：发布新版时改大，写好 更新记录.md，再运行 tools/release.py 更新 latest.json
+const APP_VERSION=4; // 数据格式版本
+const PROGRAM_VERSION='3.5.0'; // 程序版本：发布新版时改大，写好 更新记录.md，再运行 tools/release.py 更新 latest.json
 const TRASH_DAYS=30;
 /* ================= 教材目录（人教版 2019） ================= */
 const CATALOG_RAW = [
@@ -667,7 +685,7 @@ let qIndex=new Map();
 let tagById=new Map();
 const imgCache=new Map();
 const freshFilter=()=>({tags:[],tagMode:'and',types:[],levels:[],status:[],coefMin:'',coefMax:'',source:'',sort:'old',page:1,keyword:'',scope:''});
-const ui={view:'home',sec:null,secTab:'q',openBooks:new Set(),openChaps:new Set(),f:freshFilter(),sf:freshFilter(),tagManage:false,openAns:new Set(),openB:new Set(),openNotes:new Set(),lastType:'single',lastSource:'',lastGrade:'高三',bulk:false,sel:new Set()};
+const ui={view:'home',sec:null,secTab:'q',openBooks:new Set(),openChaps:new Set(),f:freshFilter(),sf:freshFilter(),tagManage:false,openAns:new Set(),openB:new Set(),openNotes:new Set(),lastType:'single',lastSource:'',lastGrade:'高三',bulk:false,sel:new Set(),exam:null,exOpen:new Set(),exAll:false};
 
 function normQ(q){
   const s=bank?bank.settings:DEFAULT_SETTINGS;
@@ -689,7 +707,7 @@ function normQ(q){
 function normalizeBank(d){
   const settings=clone(DEFAULT_SETTINGS);
   if(d.settings){ Object.assign(settings.coef,d.settings.coef||{}); Object.assign(settings.score,d.settings.score||{}); if(d.settings.grade) settings.grade=d.settings.grade; if(d.settings.print&&typeof d.settings.print==='object') settings.print=d.settings.print; }
-  bank={version:APP_VERSION,settings,topics:[],tags:[],questions:[],notes:[],basket:[],papers:[],basketPaper:'',trash:[]};
+  bank={version:APP_VERSION,settings,topics:[],tags:[],questions:[],notes:[],basket:[],papers:[],basketPaper:'',exams:[],trash:[]};
   bank.topics=(d.topics||[]).filter(t=>t&&t.id&&t.name);
   applyTopics();
   bank.tags=(d.tags||[]).filter(t=>t&&t.id&&SECTIONS[t.sec]);
@@ -698,12 +716,20 @@ function normalizeBank(d){
   bank.basket=(d.basket||[]).filter(e=>e&&e.qid);
   bank.papers=(d.papers||[]).filter(p=>p&&p.id).map(normPaper);
   bank.basketPaper=bank.papers.some(p=>p.id===d.basketPaper)?d.basketPaper:'';
-  bank.trash=(d.trash||[]).filter(t=>t&&t.item&&t.item.id&&(t.kind==='q'||t.kind==='n')).map(t=>({kind:t.kind,deleted:t.deleted||Date.now(),item:t.kind==='q'?normQ(t.item):normNote(t.item,true)}));
+  bank.exams=(d.exams||[]).filter(e=>e&&e.id).map(normExam);
+  bank.trash=(d.trash||[]).filter(t=>t&&t.item&&t.item.id&&(t.kind==='q'||t.kind==='n'||t.kind==='e')).map(t=>({kind:t.kind,deleted:t.deleted||Date.now(),item:t.kind==='q'?normQ(t.item):t.kind==='e'?normExam(t.item):normNote(t.item,true)}));
   useMap=null;
   return bank;
 }
 function normNote(n,loose){ return {id:n.id||uid(),sec:SECTIONS[n.sec]?n.sec:(loose?'1-1-1':n.sec),title:n.title||'',body:n.body||'',created:n.created||Date.now(),updated:n.updated||Date.now()}; }
 function normEntry(e){ const o={qid:e.qid,score:Math.max(0,+e.score||0)}; if(Array.isArray(e.subScores)) o.subScores=e.subScores.map(v=>Math.max(0,+v||0)); return o; }
+/* 整卷：整份外校试卷，按原卷顺序保存；卷里的题不在题库中，点“收进题库”才复制一份进题库（qid 记下题库里那道题） */
+function normExamItem(x){
+  if(x&&x.kind==='head') return {id:x.id||uid(),kind:'head',text:String(x.text||'')};
+  const q=normQ(x||{}); q.qid=typeof x?.qid==='string'?x.qid:''; return q;
+}
+function normExam(e){ return {id:e.id||uid(),name:String(e.name||'未命名试卷'),grade:GRADES.includes(e.grade)?e.grade:'高三',date:/^\d{4}-\d{2}-\d{2}$/.test(e.date||'')?e.date:'',note:String(e.note||''),
+  items:(Array.isArray(e.items)?e.items:[]).filter(Boolean).map(normExamItem),created:e.created||Date.now(),updated:e.updated||Date.now()}; }
 function normPaper(p){ return {id:p.id,name:String(p.name||'未命名试卷'),date:/^\d{4}-\d{2}-\d{2}$/.test(p.date||'')?p.date:'',created:p.created||Date.now(),updated:p.updated||Date.now(),entries:(p.entries||[]).filter(e=>e&&e.qid).map(normEntry)}; }
 /* 试卷使用记录：题目 id → 用过它的试卷 */
 let useMap=null;
@@ -744,10 +770,12 @@ function reindexAll(){ applyTopics(); tagById=new Map(bank.tags.map(t=>[t.id,t])
 const qById=id=>qIndex.get(id)?.q;
 function tagUsage(){ const m={}; bank.questions.forEach(q=>q.tags.forEach(t=>m[t]=(m[t]||0)+1)); return m; }
 function allHtml(q){ return [q.stem,...q.options,...q.judges.map(j=>j.text),q.answer,q.analysis,q.extra,q.note,...q.subs.flatMap(s=>[s.stem,s.answer,s.analysis])].join(' '); }
-function usedImageNames(){ // 题目、笔记以及回收站里的内容用到的图片
+function usedImageNames(){ // 题目、笔记、整卷以及回收站里的内容用到的图片
   const s=new Set(); const add=h=>collectImgNames(h).forEach(n=>s.add(n));
   bank.questions.forEach(q=>add(allHtml(q))); bank.notes.forEach(n=>add(n.body));
-  bank.trash.forEach(t=>add(t.kind==='q'?allHtml(t.item):t.item.body));
+  const addExam=e=>e.items.forEach(x=>add(x.kind==='head'?x.text:allHtml(x)));
+  bank.exams.forEach(addExam);
+  bank.trash.forEach(t=>t.kind==='q'?add(allHtml(t.item)):t.kind==='e'?addExam(t.item):add(t.item.body));
   return s;
 }
 function collectImgNames(html){ return [...html.matchAll(/data-img="([^"]+)"/g)].map(m=>m[1]); }
@@ -829,6 +857,7 @@ async function openStore(demo){
   if(!text||upgraded||purged) await store.writeText('bank.json',JSON.stringify(bank));
   try{ await dailyBackup(); }catch(e){ console.warn(e); }
   Object.assign(ui,{view:'home',sec:null,f:freshFilter(),sf:freshFilter(),tagManage:false,grade:bank.settings.grade||'all',bulk:false,sel:new Set()});
+  applySideW(bank.settings.sideW);
   $('#gate').hidden=true; $('#app').hidden=false; setStatus(demo?'演示模式':'已保存');
   render(true);
   let updated=null; try{ updated=sessionStorage.getItem('shicui-updated'); sessionStorage.removeItem('shicui-updated'); }catch(e){}
@@ -852,23 +881,25 @@ function trashNote(n){ bank.notes=bank.notes.filter(x=>x.id!==n.id); bank.trash.
 function restoreTrash(i){
   const t=bank.trash[i]; if(!t) return; bank.trash.splice(i,1);
   if(t.kind==='q'){ const q=normQ(t.item); q.tags=q.tags.filter(id=>tagById.has(id)); if(!bank.questions.some(x=>x.id===q.id)){ bank.questions.push(q); indexQ(q); } }
+  else if(t.kind==='e'){ const x=normExam(t.item); if(!bank.exams.some(y=>y.id===x.id)) bank.exams.push(x); }
   else{ const n=normNote(t.item,true); if(!bank.notes.some(x=>x.id===n.id)) bank.notes.push(n); }
   persist();
 }
 function trashTitle(t){
   const it=t.item;
   if(t.kind==='n') return it.title||'（无标题笔记）';
+  if(t.kind==='e') return `${it.name}（${it.items.filter(x=>x.kind!=='head').length} 道题）`;
   const txt=htmlToText([it.stem,...it.judges.map(j=>j.text)].join(' ')).replace(/\s+/g,' ').trim();
   return txt.length>90?txt.slice(0,90)+'…':(txt||'（无题干）');
 }
 function renderTrash(){
   purgeTrash();
-  const head=`<div class="view-head"><div><div class="crumb">删除的题目和笔记会在这里保留 ${TRASH_DAYS} 天，之后自动清除</div><h2>回收站</h2></div><span class="sp"></span>
+  const head=`<div class="view-head"><div><div class="crumb">删除的题目、笔记和整卷会在这里保留 ${TRASH_DAYS} 天，之后自动清除</div><h2>回收站</h2></div><span class="sp"></span>
     ${bank.trash.length?'<button class="btn small danger" data-act="trashempty">清空回收站</button>':''}</div>`;
   if(!bank.trash.length){ setMain(head+'<div class="empty">回收站是空的。</div>'); return; }
   setMain(head+bank.trash.map((t,i)=>{ const it=t.item; const sec=SECTIONS[t.kind==='q'?it.primary:it.sec];
     const left=Math.max(1,Math.ceil((t.deleted+TRASH_DAYS*864e5-Date.now())/864e5));
-    return `<div class="titem" data-ti="${i}"><div class="ti-main"><div class="ti-meta">${t.kind==='q'?`<span class="badge t-${it.type}">${TYPES[it.type]}</span>`:'<span class="badge">笔记</span>'}
+    return `<div class="titem" data-ti="${i}"><div class="ti-main"><div class="ti-meta">${t.kind==='q'?`<span class="badge t-${it.type}">${TYPES[it.type]}</span>`:`<span class="badge">${t.kind==='e'?'整卷':'笔记'}</span>`}
       ${t.kind==='q'&&it.source?`<span class="badge grade">${esc(sourceText(it))}</span>`:''}<span class="meta-sec">${esc(sec?sec.path:'')}</span></div>
       <div class="ti-text">${esc(trashTitle(t))}</div><div class="hint">${new Date(t.deleted).toLocaleString('zh-CN',{hour12:false})} 删除 · 还会保留 ${left} 天</div></div>
       <div class="btn-row"><button class="btn small" data-act="trashrestore">恢复</button><button class="btn small ghost danger" data-act="trashdel">彻底删除</button></div></div>`; }).join(''));
@@ -877,10 +908,11 @@ function renderTrash(){
 /* ================= 渲染：总入口 ================= */
 function render(resetScroll){
   renderGradeSwitch(); renderTree(); updateBasketCount();
-  const fn={home:renderHome,section:renderSection,search:renderSearch,basket:renderBasket,settings:renderSettings,trash:renderTrash,papers:renderPapers}[ui.view];
+  document.querySelectorAll('header .btn[data-nav]').forEach(b=>b.classList.toggle('on',b.dataset.nav===ui.view));
+  const fn={home:renderHome,section:renderSection,search:renderSearch,basket:renderBasket,settings:renderSettings,trash:renderTrash,papers:renderPapers,exams:renderExams}[ui.view];
   const m=$('#main'); const st=m.scrollTop; fn(); m.scrollTop=resetScroll?0:st;
 }
-function go(view,extra){ ui.view=view; ui.bulk=false; ui.sel.clear(); Object.assign(ui,extra||{}); render(true); }
+function go(view,extra){ if(view==='exams'&&!(extra&&'exam' in extra)) ui.exam=null; ui.view=view; ui.bulk=false; ui.sel.clear(); Object.assign(ui,extra||{}); render(true); }
 function setMain(h){ $('#main').innerHTML=`<div class="main-inner">${h}</div>`; }
 function updateBasketCount(){ $('#basketCount').textContent=bank.basket.length; }
 function renderGradeSwitch(){ $('#gradeSwitch').innerHTML=[['all','全部'],...GRADES.map(g=>[g,g])].map(([v,l])=>`<button data-grade="${v}" class="${ui.grade===v?'on':''}">${l}</button>`).join(''); }
@@ -897,6 +929,19 @@ function countsAll(){
   }
   return c;
 }
+/* 左侧目录宽度：拖动分隔线调节（限定范围），双击恢复默认；保存在 settings.sideW */
+const SIDE_W={def:300,min:260,max:400};
+function clampSideW(w){ w=Number(w); return Math.round(Number.isFinite(w)&&w>0?Math.min(SIDE_W.max,Math.max(SIDE_W.min,w)):SIDE_W.def); }
+function applySideW(w){ document.documentElement.style.setProperty('--side-w',clampSideW(w)+'px'); }
+(()=>{
+  const h=$('#sideResize'); let x0=0,w0=0,cur=0;
+  const save=w=>{ if(w===clampSideW(bank.settings.sideW)) return; if(w===SIDE_W.def) delete bank.settings.sideW; else bank.settings.sideW=w; persist(); };
+  h.addEventListener('pointerdown',e=>{ if(e.button!==0) return; e.preventDefault(); h.setPointerCapture(e.pointerId); x0=e.clientX; w0=cur=$('#side').getBoundingClientRect().width; h.classList.add('on'); document.body.classList.add('side-dragging'); });
+  h.addEventListener('pointermove',e=>{ if(!h.classList.contains('on')) return; cur=clampSideW(w0+e.clientX-x0); applySideW(cur); });
+  const end=()=>{ if(!h.classList.contains('on')) return; h.classList.remove('on'); document.body.classList.remove('side-dragging'); save(cur); };
+  h.addEventListener('pointerup',end); h.addEventListener('pointercancel',end);
+  h.addEventListener('dblclick',()=>{ applySideW(SIDE_W.def); save(SIDE_W.def); });
+})();
 function renderTree(){
   const c=countsAll(); let h='';
   for(const b of CATALOG){
@@ -951,6 +996,7 @@ function renderHome(){
     {act:'homenote',t:'写知识笔记',h:`写到：${sec.short}`},
     {act:'homesearch',t:'搜索题目',h:'按关键词、tag、来源查找'},
     {nav:'basket',t:'试题篮 · 组卷',h:bank.basket.length?`${bs.n} 道题 · 共 ${fmt(bs.total)} 分${bp?` · 「${esc(bp.name)}」`:''}`:'还是空的'},
+    {nav:'exams',t:'整卷',h:bank.exams.length?`${bank.exams.length} 份整卷`:'导入或录入整份外校试卷'},
     {nav:'papers',t:'试卷存档',h:bank.papers.length?`${bank.papers.length} 份试卷`:'还没有保存过试卷'},
     {act:'import',t:'导入题目',h:'导入 .json 题目文件'},
     {act:'export',t:'导出完整备份',h:'含图片，可存到 U 盘或网盘'},
@@ -976,7 +1022,7 @@ function renderHome(){
     <li>选择题、判断题题干末尾的（　）会自动加上，不用自己输入。填空题：选中答案文字，点工具栏的“挖空”。</li>
     <li>录题时可以标记自己曾经误选的选项、判错的判断、答错的空：它们在答案区用蓝色标出，难度默认归为“较难”，还能用“曾做错”筛选出来。题干里不会显示答案。</li>
     <li>勾选“选入试题篮”，在试题篮里预排版：拖动 ⋮⋮ 调整顺序，点击题目查看答案解析，“复制”后可以直接粘贴到 Word。</li>
-    <li>点左上角“拾萃”随时回到工作台。</li>
+    <li>点右上角的“工作台”（或左上角“拾萃”）随时回到工作台。</li>
    </ol></details>`);
 }
 
@@ -1304,6 +1350,142 @@ function swapNeighbor(id,dir){
   const a=bank.basket; [a[list[k].i],a[n.i]]=[a[n.i],a[list[k].i]]; persist(); render();
 }
 
+/* ---------- 整卷 ---------- */
+const examById=id=>bank.exams.find(e=>e.id===id);
+const exQs=ex=>ex.items.filter(x=>x.kind!=='head');
+const inBankQ=it=>it.qid?qById(it.qid):null; // 收进题库后又被删掉的，算作没收
+function examStats(ex){ const qs=exQs(ex); return {n:qs.length,got:qs.filter(inBankQ).length}; }
+function renderExams(){ const ex=examById(ui.exam); if(ex) renderExam(ex); else{ ui.exam=null; renderExamList(); } }
+function renderExamList(){
+  const list=[...bank.exams].sort((a,b)=>(b.date||'').localeCompare(a.date||'')||b.created-a.created);
+  const head=`<div class="view-head"><div><div class="crumb">整份试卷按原卷顺序保存在这里，每道题的显示方式和题库里的题一样；卷里的题不会进入题库，看中的题再点“收进题库”</div><h2>整卷</h2></div><span class="sp"></span>
+    <button class="btn" data-act="eximportnew">导入整卷文件</button><button class="btn primary" data-act="exnew">新建整卷</button></div>`;
+  if(!list.length){ setMain(head+'<div class="empty">还没有整卷。<br>点“新建整卷”后逐题录入，或者点“导入整卷文件”导入整理好的 .json 文件。</div>'); return; }
+  setMain(head+list.map(ex=>{ const st=examStats(ex);
+    return `<div class="paper" data-xid="${ex.id}"><div class="pp-main"><div class="pp-name">${esc(ex.name)}</div>
+      <div class="hint">${ex.date?ex.date+' · ':''}${ex.grade} · ${st.n} 道题${st.got?` · 已收进题库 ${st.got} 道`:''}</div></div>
+      <div class="btn-row"><button class="btn small primary" data-act="exopen">查看</button><button class="btn small ghost" data-act="exinfo">改信息</button><button class="btn small ghost danger" data-act="exdelexam">删除</button></div></div>`; }).join(''));
+}
+function exItemHTML(ex,it,no){
+  if(it.kind==='head') return `<div class="ex-head" data-eitem="${it.id}"><b>${esc(it.text)||'<span class="hint">（空标题）</span>'}</b><span class="sp"></span>
+    <button class="icon" data-act="exheadedit" title="修改标题">改</button><button class="icon" data-act="exup" title="上移">↑</button><button class="icon" data-act="exdown" title="下移">↓</button><button class="icon danger" data-act="exdel" title="删除标题">×</button></div>`;
+  const open=ui.exAll||ui.exOpen.has(it.id); const bq=inBankQ(it);
+  return `<div class="qcard exq ${open?'reveal':''}" data-eitem="${it.id}">
+   <div class="qmeta"><span class="exno">${no}</span><span class="badge t-${it.type}">${TYPES[it.type]}</span><span class="badge lv${it.level} ${it.levelUnset?'unset':''}">${levelText(it)}</span>${isMissed(it)?'<span class="badge missed">曾做错</span>':''}<span class="sp"></span>
+    ${bq?`<span class="badge inbank" data-act="exgoq" title="打开题库里的这道题所在的节">已收进题库 · ${esc(SECTIONS[bq.primary].short)}</span>`:'<button class="btn small" data-act="excollect">收进题库</button>'}</div>
+   ${it.review?`<div class="review"><span>导入备注：${esc(it.review)}</span><button data-act="exreviewok">知道了</button></div>`:''}
+   <div class="rendered">${qBodyHTML(it)}</div>
+   <div class="qactions"><button class="btn small ${open?'on':''}" data-act="exans">${open?'收起答案解析':'查看答案解析'}</button><button class="btn small ghost" data-act="exedit">编辑</button><button class="btn small ghost" data-act="excopy">复制题目</button><button class="btn small ghost" data-act="exinsert" title="在这道题后面录入一道题">在后面插入</button>
+    <span class="sp"></span><button class="icon" data-act="exup" title="上移">↑</button><button class="icon" data-act="exdown" title="下移">↓</button><button class="btn small ghost danger" data-act="exdel">删除</button></div>
+   <div class="qans rendered" ${open?'':'hidden'}>${qAnsHTML(it)}</div>
+  </div>`;
+}
+function renderExam(ex){
+  const st=examStats(ex); let no=0;
+  setMain(`<div class="view-head"><div><div class="crumb"><a href="#" data-act="exback">整卷</a> ›</div><h2>${esc(ex.name)}</h2>
+     <div class="hint" style="margin-top:4px">${ex.date?ex.date+' · ':''}${ex.grade} · ${st.n} 道题 · 已收进题库 ${st.got} 道${ex.note?` · ${esc(ex.note)}`:''}</div></div><span class="sp"></span>
+     <button class="btn ghost" data-act="exinfo">改信息</button><button class="btn ghost danger" data-act="exdelexam">删除整卷</button></div>
+   <div class="panel ex-bar"><button class="btn primary small" data-act="exadd">＋ 录入题目</button><button class="btn small" data-act="exaddhead">＋ 大题标题</button><button class="btn small" data-act="eximport">导入题目文件</button>
+     <span class="sp"></span><button class="btn small ${ui.exAll?'on':''}" data-act="exall">${ui.exAll?'全部收起答案':'全部展开答案'}</button></div>
+   ${ex.items.length?ex.items.map(it=>exItemHTML(ex,it,it.kind==='head'?0:++no)).join(''):'<div class="empty">这张卷子还没有题。<br>点“录入题目”逐题录入，或者“导入题目文件”。大题标题（如“一、单项选择题”）可以用“＋ 大题标题”加上。</div>'}
+   ${ex.items.length>3?'<div class="btn-row" style="margin-top:6px"><button class="btn small" data-act="exadd">＋ 在末尾录入题目</button></div>':''}`);
+  hydrateImages($('#main'));
+}
+function examForm(ex){ return new Promise(res=>{
+  const m=$('#modal');
+  m.innerHTML=`<div class="modal-card"><h3>${ex?'修改整卷信息':'新建整卷'}</h3>
+    <label class="form-row"><span>试卷名称</span><input id="xfName" value="${esc(ex?ex.name:'')}" placeholder="例如：2026 南通一模" style="flex:1"></label>
+    <div class="form-row"><span>年级</span><div class="seg" id="xfGrade">${GRADES.map(g=>`<button data-g="${g}" class="${(ex?ex.grade:(ui.grade!=='all'?ui.grade:ui.lastGrade))===g?'on':''}">${g}</button>`).join('')}</div></div>
+    <label class="form-row"><span>考试日期</span><input id="xfDate" type="date" value="${esc(ex?ex.date:'')}"></label>
+    <label class="form-row"><span>备注</span><input id="xfNote" value="${esc(ex?ex.note:'')}" placeholder="可不填" style="flex:1"></label>
+    <div class="btn-row" style="justify-content:flex-end;margin-top:14px"><button class="btn" data-x>取消</button><button class="btn primary" data-ok>保存</button></div></div>`;
+  m.hidden=false; $('#xfName').focus();
+  const ok=()=>{ const name=$('#xfName').value.trim(); if(!name){ $('#xfName').focus(); toast('请填写试卷名称'); return; } m.hidden=true;
+    res({name,grade:$('#xfGrade .on')?.dataset.g||'高三',date:$('#xfDate').value||'',note:$('#xfNote').value.trim()}); };
+  $('#xfName').onkeydown=e=>{ if(e.key==='Enter') ok(); };
+  m.onclick=e=>{ const g=e.target.closest('[data-g]'); if(g){ $$('#xfGrade button').forEach(b=>b.classList.toggle('on',b===g)); return; }
+    if(e.target.closest('[data-ok]')) ok(); else if(e.target.closest('[data-x]')){ m.hidden=true; res(null); } };
+}); }
+function openExamEditor(ex,pos,item){
+  openEditor(item||null,null,{exam:{examId:ex.id,pos},preset:item?null:{source:ex.name,grade:ex.grade,qno:'',review:'',missed:false,tags:[],tagsPending:false}});
+}
+function saveExamItem(d,andNew){
+  const ex=examById(edExam.examId); const pos=edExam.pos; if(!ex){ closeEditor(); return; }
+  const it=normExamItem(clone(d)); const i=ex.items.findIndex(x=>x.id===it.id);
+  let at; if(i>=0){ ex.items[i]=it; at=i; } else{ at=Math.min(Math.max(0,pos??ex.items.length),ex.items.length); ex.items.splice(at,0,it); }
+  ex.updated=Date.now(); persist(); ui.lastType=it.type;
+  closeEditor(); render(); toast(i>=0?'已保存修改':'已保存到整卷');
+  if(andNew) openExamEditor(ex,at+1);
+}
+function collectExamItem(ex,it,no){
+  const p=clone(it); ['id','qid','created','updated','tags','tagsPending'].forEach(k=>delete p[k]);
+  if(p.primary==='1-1-1') delete p.primary; // 导入时没写节的，按当前所在的节
+  Object.assign(p,{source:ex.name,qno:it.qno||('T'+no),review:'',created:Date.now(),updated:Date.now()});
+  openEditor(null,null,{collect:{examId:ex.id,itemId:it.id},preset:p});
+}
+/* 整卷文件：{format:"qbank-exam", name, grade, date, items:[{head:"一、单项选择题"}, 题目…]}；
+   题目的写法和 qbank-import 相同（section、tags 可以不写）。也可以直接用 qbank-import 文件，其中的题按顺序放进整卷。 */
+async function importExam(data,ex,fname){
+  const list=Array.isArray(data.items)?data.items:Array.isArray(data.questions)?data.questions:[];
+  if(!list.length){ alert('文件里没有题目。'); return; }
+  const isNew=!ex;
+  if(isNew) ex=normExam({id:uid(),name:String(data.name||data.title||(fname||'').replace(/\.json$/i,'')||'未命名试卷'),grade:data.grade,date:data.date,note:data.note,items:[]});
+  const base=Date.now(), errs=[]; let n=0, nh=0; const show=$('#saveStatus');
+  for(const [i,r] of list.entries()){
+    if(i%10===0) show.textContent=`导入中 ${i}/${list.length}…`;
+    try{
+      if(typeof r==='string'||r.kind==='head'||r.type==='head'||(r.head&&!r.stem)){ ex.items.push(normExamItem({kind:'head',text:typeof r==='string'?r:(r.head||r.text||'')})); nh++; continue; }
+      const type=resolveType(r.type); if(!type) throw new Error('无法识别题型：'+r.type);
+      const q=await rawToQ(r,type,resolveSection(r.section,false)||'1-1-1',base+i);
+      if(!GRADES.includes(r.grade)) q.grade=ex.grade;
+      ex.items.push(normExamItem(q)); n++;
+    }catch(e){ errs.push(`第 ${i+1} 项：${e.message}`); }
+  }
+  if(isNew) bank.exams.push(ex); ex.updated=Date.now(); persist(); setStatus('');
+  ui.exam=ex.id; ui.view='exams'; render(true);
+  alert(`${isNew?`已新建整卷「${ex.name}」：`:'导入完成：'}${n} 道题${nh?`、${nh} 个大题标题`:''}${errs.length?`；失败 ${errs.length} 项：\n`+errs.slice(0,12).join('\n'):''}`);
+}
+async function pickExamFile(ex){
+  const file=await pickFile('.json,application/json'); if(!file) return;
+  let data; try{ data=JSON.parse(await file.text()); }catch(e){ alert('这个文件不是有效的 JSON 文件。'); return; }
+  if(data.format!=='qbank-exam'&&data.format!=='qbank-import'){ alert('请选择整卷文件（qbank-exam）或题目导入文件（qbank-import）。'); return; }
+  await importExam(data,ex,file.name);
+}
+async function examAction(act,a){
+  const ex=examById(a.closest('[data-xid]')?.dataset.xid||ui.exam); if(!ex&&act!=='exnew'&&act!=='eximportnew') return;
+  const el=a.closest('[data-eitem]'); const idx=el?ex.items.findIndex(x=>x.id===el.dataset.eitem):-1; const it=idx>=0?ex.items[idx]:null;
+  const noOf=x=>exQs(ex).indexOf(x)+1;
+  switch(act){
+    case 'exnew': { const v=await examForm(null); if(!v) return; const x=normExam({id:uid(),...v,items:[]}); bank.exams.push(x); persist(); go('exams',{exam:x.id}); break; }
+    case 'eximportnew': pickExamFile(null); break;
+    case 'eximport': pickExamFile(ex); break;
+    case 'exopen': go('exams',{exam:ex.id}); break;
+    case 'exback': go('exams',{exam:null}); break;
+    case 'exinfo': { const v=await examForm(ex); if(!v) return; Object.assign(ex,v,{updated:Date.now()}); persist(); render(); break; }
+    case 'exdelexam': {
+      const st=examStats(ex);
+      const ok=await choose('删除整卷',`确定删除整卷「${ex.name}」吗？删除后会放进回收站，${TRASH_DAYS} 天内可以恢复。${st.got?`\n已收进题库的 ${st.got} 道题不受影响。`:''}`,[{label:'取消',value:false},{label:'删除',value:true,danger:true}]); if(!ok) return;
+      bank.exams=bank.exams.filter(x=>x!==ex); bank.trash.unshift({kind:'e',deleted:Date.now(),item:ex}); persist(); go('exams',{exam:null}); toast('已移到回收站'); break; }
+    case 'exadd': openExamEditor(ex,ex.items.length); break;
+    case 'exinsert': openExamEditor(ex,idx+1); break;
+    case 'exedit': openExamEditor(ex,idx,it); break;
+    case 'exaddhead': case 'exheadedit': {
+      const t=prompt('大题标题（例如：一、单项选择题：本题共 15 小题，每小题 2 分）：',it?.text||''); if(t===null||(!t.trim()&&!it)) return;
+      if(it) it.text=t.trim(); else ex.items.push(normExamItem({kind:'head',text:t.trim()}));
+      ex.updated=Date.now(); persist(); render(); break; }
+    case 'exup': case 'exdown': { const j=act==='exup'?idx-1:idx+1; if(j<0||j>=ex.items.length) return; [ex.items[idx],ex.items[j]]=[ex.items[j],ex.items[idx]]; ex.updated=Date.now(); persist(); render(); break; }
+    case 'exdel': {
+      const ok=await choose(it.kind==='head'?'删除大题标题':'删除整卷里的题',it.kind==='head'?`确定删除标题「${it.text}」吗？下面的题不受影响。`:`确定从整卷里删除第 ${noOf(it)} 题吗？${inBankQ(it)?'题库里收进的那道题不受影响。':''}`,[{label:'取消',value:false},{label:'删除',value:true,danger:true}]); if(!ok) return;
+      ex.items.splice(idx,1); ex.updated=Date.now(); persist(); render(); break; }
+    case 'exans': { const open=!(ui.exAll||ui.exOpen.has(it.id)); if(ui.exAll){ ui.exAll=false; exQs(ex).forEach(x=>ui.exOpen.add(x.id)); } open?ui.exOpen.add(it.id):ui.exOpen.delete(it.id); render(); break; }
+    case 'exall': ui.exAll=!ui.exAll; ui.exOpen.clear(); render(); break;
+    case 'excopy': copyHTML(questionCopyHTML(it,noOf(it))); break;
+    case 'exreviewok': it.review=''; persist(); render(); break;
+    case 'excollect': collectExamItem(ex,it,noOf(it)); break;
+    case 'exgoq': { const q=inBankQ(it); if(q){ ui.openAns.add(q.id); openSection(q.primary); } break; }
+  }
+}
+
 /* ---------- 试卷 ---------- */
 const paperOf=a=>bank.papers.find(p=>p.id===a.closest('[data-pid]')?.dataset.pid);
 function paperStats(p){ let n=0,total=0,miss=0; for(const e of p.entries){ const q=qById(e.qid); if(!q){ miss++; continue; } n++; total+=entryScore(clone(e),q); } return {n,total,miss}; }
@@ -1371,7 +1553,7 @@ function exportDialog(list,title){
     $('.ex-sub',m).hidden=o.style==='std';
     $('.ex-ana',m).hidden=o.ans==='none';
     $('.ex-anahint',m).textContent={end:'答案另起一页，放在试卷最后。',each:'每道题后面紧跟答案，适合做教师用卷。',only:'只导出答案，适合单独发给学生对答案。'}[o.ans]||'';
-    $('.ex-hint',m).textContent=o.fmt==='docx'?'导出后可以用 Word 或 WPS 打开，继续修改文字和版式。':'点“导出”后会打开打印窗口：目标打印机选“另存为 PDF”即可得到 PDF 文件。在“更多设置”里取消勾选“页眉和页脚”，可以去掉页面顶部的网址和日期。';
+    $('.ex-hint',m).textContent=o.fmt==='docx'?'导出后可以用 Word 或 WPS 打开，继续修改文字和版式。':'点“导出”后会打开打印窗口：目标打印机选“另存为 PDF”即可得到 PDF 文件。';
     $('[data-ok]',m).textContent=o.fmt==='docx'?'导出 Word':'打印 / 存 PDF';
   };
   m.hidden=false; sync();
@@ -1475,7 +1657,7 @@ async function doPrint(list,o){
   P.style.setProperty('--pt-size',o.size+'pt'); P.classList.toggle('a3',o.paper==='a3');
   $$('.pt-q[data-space]',P).forEach(q=>{ const subs=q.querySelectorAll('.sub'); if(subs.length) subs.forEach(s=>s.insertAdjacentHTML('afterend','<div class="pt-space"></div>')); else q.querySelector('.pt-body').insertAdjacentHTML('beforeend','<div class="pt-space"></div>'); });
   const lbl=o.ans==='none'?'试卷':o.ans==='only'?'答案':'';
-  $('#pageStyle').textContent=`@page{size:${o.paper==='a3'?'A3 landscape':'A4 portrait'};margin:16mm 16mm 16mm ${seal?'10mm':'16mm'};@bottom-center{content:"${lbl}第 " counter(page) " 页，共 " counter(pages) " 页";font-size:9pt;color:#333}}`;
+  $('#pageStyle').textContent=`@page{size:${o.paper==='a3'?'A3 landscape':'A4 portrait'};margin:16mm 16mm 16mm ${seal?'10mm':'16mm'};@top-center{content:""}@bottom-center{content:"${lbl}第 " counter(page) " 页，共 " counter(pages) " 页";font-size:9pt;color:#333}}`;
   setStatus('准备打印…'); await loadImages(P);
   $$('img',P).forEach(i=>{ if(i.naturalWidth) i.style.width=Math.round(i.naturalWidth/2)+'px'; }); // 与 Word 版一致：按一半像素排
   document.body.classList.add('printing');
@@ -1991,6 +2173,7 @@ function exportText(){
 async function restoreOrImport(){
   const file=await pickFile('.json,application/json'); if(!file) return;
   let data; try{ data=JSON.parse(await file.text()); }catch(e){ alert('这个文件不是有效的 JSON 文件。'); return; }
+  if(data.format==='qbank-exam'){ await flush(); try{ await store.writeBackup(`before-import-${Date.now()}.json`,JSON.stringify(bank)); }catch(e){} await importExam(data,null,file.name); return; }
   if(data.format==='qbank-import'||data.format==='qbank-update'){
     await flush(); try{ await store.writeBackup(`before-import-${Date.now()}.json`,JSON.stringify(bank)); }catch(e){}
     if(data.format==='qbank-import') await importQuestions(data); else applyUpdates(data);
@@ -2013,6 +2196,7 @@ async function restoreOrImport(){
     incoming.questions.forEach(q=>{ if(!has(bank.questions,q.id)){ bank.questions.push(normQ(q)); addQ++; } });
     incoming.notes.forEach(n=>{ if(!has(bank.notes,n.id)){ bank.notes.push(n); addN++; } });
     incoming.papers.forEach(p=>{ if(!has(bank.papers,p.id)) bank.papers.push(p); });
+    incoming.exams.forEach(x=>{ if(!has(bank.exams,x.id)) bank.exams.push(x); });
     reindexAll(); persist(); alert(`合并完成：新增 ${addQ} 道题、${addN} 篇笔记、${addT} 个 tag。`);
   }
   bank.basket=bank.basket.filter(e=>qIndex.has(e.qid)); ui.view='home'; render(true);
@@ -2054,22 +2238,11 @@ async function importQuestions(data){
     try{
       const sec=resolveSection(r.section,true); if(!sec) throw new Error('找不到所属节：'+r.section);
       const type=resolveType(r.type); if(!type) throw new Error('无法识别题型：'+r.type);
-      let level=typeof r.level==='number'?r.level:LEVELS.indexOf(r.level); if(!(level>=1&&level<=5)) level=0;
-      const h=async x=>cleanField(await extractDataImages(toHTML(x)));
-      const q=normQ({type,level:level||3,coef:typeof r.coef==='number'?r.coef:bank.settings.coef[level||3],levelUnset:!!r.levelUnset,
-        source:r.source||'',qno:r.qno||'',adapted:!!r.adapted,grade:r.grade,missed:!!r.missed,primary:sec,
-        key:normKey(type,r.key),wrong:isChoice(type)?[...new Set(String(r.wrong||'').toUpperCase().replace(/[^A-H]/g,''))].sort().join(''):'',
-        stem:await h(r.stem),options:isChoice(type)?await Promise.all((r.options||[]).map(h)):[],
-        judges:type==='judge'?await Promise.all((r.judges||[]).map(async j=>({text:await h(j.text),key:judgeKey(j.key),miss:!!j.miss}))):[],
-        answer:type==='judge'||isChoice(type)?'':await h(r.answer),analysis:await h(r.analysis),extra:await h(r.extra),note:await h(r.note),
-        subs:(type==='answer'||type==='exp')?await Promise.all((r.subs||[]).map(async s=>({stem:await h(s.stem),answer:await h(s.answer),analysis:await h(s.analysis),score:typeof s.score==='number'?s.score:bank.settings.score.sub}))):[],
-        tagsPending:!!r.tagsPending,review:r.review||'',created:base+i,updated:base+i});
-      if(type==='judge'&&!q.judges.length&&hasContent(q.stem)){ q.judges=[{text:ensureSlot(q.stem),key:judgeKey(r.key),miss:false}]; q.stem=''; }
+      const q=await rawToQ(r,type,sec,base+i);
       for(const t of (r.tags||[])){
         const ts=typeof t==='string'?sec:resolveSection(t.section,true); const nm=typeof t==='string'?t:t.name;
         if(!ts||!nm) continue; const tg=addTag(ts,nm); if(tg&&!q.tags.includes(tg.id)) q.tags.push(tg.id);
       }
-      if(!level){ q.level=isMissed(q)?4:3; q.coef=typeof r.coef==='number'?r.coef:bank.settings.coef[q.level]; }
       const sim=findSimilar(q,fresh); if(sim.length) dups.push({q,m:sim[0].q});
       fresh.push({q,bg:bigrams(dupText(q))});
     }catch(e){ errs.push(`第 ${i+1} 题：${e.message}`); }
@@ -2090,6 +2263,22 @@ async function importQuestions(data){
   }
   reindexAll(); persist(); render();
   alert(`导入完成：${ok} 道题、${nn} 篇笔记${skipped?`；跳过 ${skipped} 道可能重复的题`:''}${errs.length?`；失败 ${errs.length} 项：\n`+errs.slice(0,12).join('\n'):''}`);
+}
+/* 导入文件里的一道题 → 题目对象（不含 tag） */
+async function rawToQ(r,type,sec,t){
+      let level=typeof r.level==='number'?r.level:LEVELS.indexOf(r.level); if(!(level>=1&&level<=5)) level=0;
+      const h=async x=>cleanField(await extractDataImages(toHTML(x)));
+      const q=normQ({type,level:level||3,coef:typeof r.coef==='number'?r.coef:bank.settings.coef[level||3],levelUnset:!!r.levelUnset,
+        source:r.source||'',qno:r.qno||'',adapted:!!r.adapted,grade:r.grade,missed:!!r.missed,primary:sec,
+        key:normKey(type,r.key),wrong:isChoice(type)?[...new Set(String(r.wrong||'').toUpperCase().replace(/[^A-H]/g,''))].sort().join(''):'',
+        stem:await h(r.stem),options:isChoice(type)?await Promise.all((r.options||[]).map(h)):[],
+        judges:type==='judge'?await Promise.all((r.judges||[]).map(async j=>({text:await h(j.text),key:judgeKey(j.key),miss:!!j.miss}))):[],
+        answer:type==='judge'||isChoice(type)?'':await h(r.answer),analysis:await h(r.analysis),extra:await h(r.extra),note:await h(r.note),
+        subs:(type==='answer'||type==='exp')?await Promise.all((r.subs||[]).map(async s=>({stem:await h(s.stem),answer:await h(s.answer),analysis:await h(s.analysis),score:typeof s.score==='number'?s.score:bank.settings.score.sub}))):[],
+        tagsPending:!!r.tagsPending,review:r.review||'',created:t,updated:t});
+      if(type==='judge'&&!q.judges.length&&hasContent(q.stem)){ q.judges=[{text:ensureSlot(q.stem),key:judgeKey(r.key),miss:false}]; q.stem=''; }
+      if(!level){ q.level=isMissed(q)?4:3; q.coef=typeof r.coef==='number'?r.coef:bank.settings.coef[q.level]; }
+      return q;
 }
 function applyUpdates(data){
   let n=0; const miss=[];
@@ -2123,6 +2312,7 @@ $('#topSearch').addEventListener('keydown',e=>{ if(e.key==='Enter'){ ui.sf.keywo
 
 main.addEventListener('click',async e=>{
   const a=e.target.closest('[data-act]'); if(!a) return; const act=a.dataset.act; if(act==='pick'||act==='bsel') return;
+  if(/^ex(?!port)/.test(act)&&(a.closest('[data-xid]')||ui.view==='exams')){ e.preventDefault(); examAction(act,a); return; }
   if(e.target.closest('a[href]')) return;
   const card=e.target.closest('[data-qid]'); const q=card?qById(card.dataset.qid):null; const f=curF();
   const noteEl=e.target.closest('[data-nid]'); const note=noteEl?bank.notes.find(n=>n.id===noteEl.dataset.nid):null;
@@ -2157,7 +2347,7 @@ main.addEventListener('click',async e=>{
     case 'notecopy': copyHTML(`<div><b>${esc(note.title)}</b></div>`+note.body); break;
     case 'notedel': { const ok=await choose('删除笔记',`确定删除笔记「${note.title}」吗？删除后会放进回收站，${TRASH_DAYS} 天内可以恢复。`,[{label:'取消',value:false},{label:'删除',value:true,danger:true}]); if(!ok) return; trashNote(note); persist(); render(); toast('已移到回收站'); break; }
     case 'gotrash': go('trash'); break;
-    case 'trashrestore': { const i=+a.closest('[data-ti]').dataset.ti; const t=bank.trash[i]; restoreTrash(i); render(); toast(t.kind==='q'?'题目已恢复':'笔记已恢复'); break; }
+    case 'trashrestore': { const i=+a.closest('[data-ti]').dataset.ti; const t=bank.trash[i]; restoreTrash(i); render(); toast(t.kind==='q'?'题目已恢复':t.kind==='e'?'整卷已恢复':'笔记已恢复'); break; }
     case 'trashdel': { const i=+a.closest('[data-ti]').dataset.ti; const ok=await choose('彻底删除','彻底删除后无法再从回收站恢复，确定吗？',[{label:'取消',value:false},{label:'彻底删除',value:true,danger:true}]); if(!ok) return; bank.trash.splice(i,1); persist(); render(); break; }
     case 'trashempty': { const ok=await choose('清空回收站',`确定彻底删除回收站里的 ${bank.trash.length} 项内容吗？此操作无法撤销。`,[{label:'取消',value:false},{label:'清空',value:true,danger:true}]); if(!ok) return; bank.trash=[]; persist(); render(); break; }
     case 'tagtoggle': case 'cardtag': {
@@ -2292,13 +2482,15 @@ main.addEventListener('dragend',()=>{ dragQ=null; clearDropMarks(); $$('.draggin
 
 /* ================= 录题编辑器 ================= */
 let draft=null, draftOrig='', editorIsNew=false, editorMode='q', lastRich=null, lastRange=null, levelTouched=false;
+let edExam=null, edCollect=null; // 录入/编辑整卷里的题：{examId,pos}；把整卷里的题收进题库：{examId,itemId}
 const ED=$('#editor');
 function newQuestion(sec){
   const s=bank.settings, t=ui.lastType;
   return normQ({id:uid(),type:t,options:isChoice(t)?['','','','']:[],judges:t==='judge'?[{text:'',key:'',miss:false}]:[],level:3,coef:s.coef[3],source:ui.lastSource,grade:ui.grade!=='all'?ui.grade:ui.lastGrade,primary:sec||ui.sec||'1-1-1',tags:[],created:Date.now(),updated:Date.now()});
 }
-function openEditor(q,sec){
-  editorMode='q'; draft=q?clone(q):newQuestion(sec); editorIsNew=!q; lastRich=null; lastRange=null; levelTouched=false;
+function openEditor(q,sec,opt){
+  opt=opt||{}; edExam=opt.exam||null; edCollect=opt.collect||null;
+  editorMode='q'; draft=q?clone(q):Object.assign(newQuestion(sec),clone(opt.preset||{})); editorIsNew=!q; lastRich=null; lastRange=null; levelTouched=false;
   if(isChoice(draft.type)&&!draft.options.length) draft.options=['','','',''];
   if(draft.type==='judge'&&!draft.judges.length) draft.judges=[{text:'',key:'',miss:false}];
   renderEditor(); ED.hidden=false; syncDraft(); draftOrig=JSON.stringify(draft);
@@ -2311,7 +2503,7 @@ function autoLevel(){ // 曾做错且还没手动选过难度 → 默认“较�
   $$('#lvSeg button',ED).forEach(b=>b.classList.toggle('on',+b.dataset.v===4&&!d.levelUnset)); const c=$('#edCoef'); if(c) c.value=d.coef;
   toast('已标记做错，难度默认归为“较难”');
 }
-function closeEditor(){ ED.hidden=true; ED.innerHTML=''; draft=null; }
+function closeEditor(){ ED.hidden=true; ED.innerHTML=''; draft=null; edExam=null; edCollect=null; }
 function toolbarHTML(){
   return `<button data-cmd="bold" title="加粗"><b>B</b></button><button data-cmd="underline" title="下划线"><u>U</u></button>
   <button data-cmd="em" title="着重号（先选中文字）"><span class="em-dot">着重</span></button><button data-cmd="mark" title="高亮（先选中文字）"><mark>高亮</mark></button>
@@ -2332,27 +2524,30 @@ function secPickHTML(p){
   <select data-pick="sec">${CHAPS[s.chapId].sections.map(x=>`<option value="${x.id}" ${x.id===p?'selected':''}>${esc(x.title)}</option>`).join('')}</select>`;
 }
 function renderEditor(){
-  const d=draft;
+  const d=draft, X=edExam?bank.exams.find(e=>e.id===edExam.examId):null;
+  const title=X?(editorIsNew?'录入整卷题目':'编辑整卷题目'):edCollect?'收进题库':editorIsNew?'录入题目':'编辑题目';
   ED.innerHTML=`<div class="ed-wrap">
-   <div class="ed-head"><h3>${editorIsNew?'录入题目':'编辑题目'}</h3><span class="sp"></span>
-     <button class="btn ghost" data-eact="cancel">取消</button>${editorIsNew?'<button class="btn" data-eact="savenew">保存并录入下一题</button>':''}<button class="btn primary" data-eact="save">保存</button></div>
+   <div class="ed-head"><h3>${title}</h3><span class="sp"></span>
+     <button class="btn ghost" data-eact="cancel">取消</button>${editorIsNew&&!edCollect?'<button class="btn" data-eact="savenew">保存并录入下一题</button>':''}<button class="btn primary" data-eact="save">${edCollect?'保存到题库':'保存'}</button></div>
    <div class="ed-toolbar" id="rtb">${toolbarHTML()}</div>
    <div class="ed-body">
+    ${X?`<div class="ex-tip">这道题只保存在整卷「${esc(X.name)}」里，不会进入题库；以后可以在整卷里点“收进题库”。</div>`:''}
+    ${edCollect?'<div class="ex-tip">从整卷复制一份到题库：选好主节和考点 tag 后保存。整卷里的原题不变。</div>':''}
     ${d.review?`<div class="review"><span>导入备注：${esc(d.review)}</span><button data-eact="reviewok">知道了，清除</button></div>`:''}
     <div class="ed-grid">
-     <label>主节</label><div class="ed-line" id="secPick">${secPickHTML(d.primary)}</div>
+     ${X?'':`<label>主节</label><div class="ed-line" id="secPick">${secPickHTML(d.primary)}</div>`}
      <label>题型</label><div class="seg" id="typeSeg">${TYPE_ORDER.map(t=>`<button data-eact="type" data-v="${t}" class="${d.type===t?'on':''}">${TYPES[t]}</button>`).join('')}</div>
      <label>年级</label><div class="ed-line"><div class="seg" id="gradeSeg">${GRADES.map(g=>`<button data-eact="grade" data-v="${g}" class="${d.grade===g?'on':''}">${g}</button>`).join('')}</div></div>
      <label>难度</label><div class="lvrow"><div class="seg" id="lvSeg">${[1,2,3,4,5].map(n=>`<button data-eact="level" data-v="${n}" class="${!d.levelUnset&&d.level===n?'on':''}">${LEVELS[n]}</button>`).join('')}</div>
        <span class="coef-lbl">难度系数</span><input type="number" id="edCoef" step="0.01" min="0" max="1" value="${d.coef}">${d.levelUnset?'<span class="hint">未评定（选一个等级即可）</span>':''}</div>
-     <label>来源</label><div class="ed-line"><input id="edSource" value="${esc(d.source)}" placeholder="试卷，如：2026海安高三期初" list="srcList"><input id="edQno" value="${esc(d.qno)}" placeholder="题号 T12"><label class="chk"><input type="checkbox" id="edAdapted" ${d.adapted?'checked':''}>改编</label></div>
+     ${X?'':`<label>来源</label><div class="ed-line"><input id="edSource" value="${esc(d.source)}" placeholder="试卷，如：2026海安高三期初" list="srcList"><input id="edQno" value="${esc(d.qno)}" placeholder="题号 T12"><label class="chk"><input type="checkbox" id="edAdapted" ${d.adapted?'checked':''}>改编</label></div>`}
     </div>
     <div id="edDyn"></div>
     <div class="ed-sec"><div class="ed-lbl">解析</div><div class="rich" contenteditable="true" data-f="analysis" data-ph="解析"></div></div>
     <div class="ed-sec"><div class="ed-lbl">补充 <span class="hint">解析之外的拓展知识，可以带自己的来源</span></div><div class="rich small" contenteditable="true" data-f="extra" data-ph="补充"></div></div>
     <div class="ed-sec"><div class="ed-lbl">备注 / 易错点 <span class="hint">讲评时提醒自己用</span></div><div class="rich small" contenteditable="true" data-f="note" data-ph="例如：学生容易把演绎推理和提出假说混淆"></div></div>
     <div class="ed-sec"><div class="ed-lbl">我的作答 <label class="chk"><input type="checkbox" id="edMissed" ${d.missed?'checked':''}>我曾做错这道题</label><span class="hint">选择题、判断题、填空题的具体错处在上面标记，会自动算作“曾做错”；曾做错的题难度默认归为“较难”</span></div></div>
-    <div class="ed-sec"><div class="ed-lbl">考点 tag ${d.tagsPending?'<span class="pend-flag">待确认 <button data-eact="tagconfirm">✓ 确认</button></span>':''}</div><div id="edTags"></div></div>
+    ${X?'':`<div class="ed-sec"><div class="ed-lbl">考点 tag ${d.tagsPending?'<span class="pend-flag">待确认 <button data-eact="tagconfirm">✓ 确认</button></span>':''}</div><div id="edTags"></div></div>`}
    </div></div>`;
   ['analysis','extra','note'].forEach(k=>ED.querySelector(`[data-f="${k}"]`).innerHTML=d[k]||'');
   renderEdDyn(); renderEdTags(); hydrateImages(ED);
@@ -2397,6 +2592,7 @@ function renderEdDyn(){
   hydrateImages(box);
 }
 function renderEdTags(){
+  if(!$('#edTags')) return;
   const d=draft, P=SECTIONS[d.primary];
   const own=bank.tags.filter(t=>t.sec===d.primary);
   const borrowed=d.tags.map(id=>tagById.get(id)).filter(t=>t&&t.sec!==d.primary);
@@ -2415,7 +2611,8 @@ function syncDraft(){
   $$('[data-jt]',ED).forEach(e=>{ const j=d.judges[+e.dataset.jt]; if(j) j.text=sanitize(e.innerHTML); });
   $$('[data-sub]',ED).forEach(e=>{ const s=d.subs[+e.dataset.sub]; if(s) s[e.dataset.sf]=cleanField(e.innerHTML); });
   $$('[data-subscore]',ED).forEach(e=>{ const s=d.subs[+e.dataset.subscore]; if(s) s.score=Math.max(0,parseFloat(e.value)||0); });
-  const src=$('#edSource'); if(src){ d.source=src.value.trim(); d.qno=$('#edQno').value.trim(); d.adapted=$('#edAdapted').checked; d.missed=$('#edMissed').checked; }
+  const src=$('#edSource'); if(src){ d.source=src.value.trim(); d.qno=$('#edQno').value.trim(); d.adapted=$('#edAdapted').checked; }
+  const ms=$('#edMissed'); if(ms) d.missed=ms.checked;
   const c=parseFloat($('#edCoef')?.value); if(!isNaN(c)) d.coef=Math.min(1,Math.max(0,+c.toFixed(3)));
 }
 async function saveEditor(andNew){
@@ -2433,16 +2630,19 @@ async function saveEditor(andNew){
     d.stem=ensureSlot(d.stem);
   }else{ d.options=[]; d.key=''; d.wrong=''; if(d.type!=='judge') d.stem=d.stem.replace(SLOT,''); }
   if(d.type!=='judge') d.judges=[];
-  if(editorIsNew){ const sim=findSimilar(d); if(sim.length&&!(await dupDialog(sim))) return; }
+  if(editorIsNew&&!edExam){ const sim=findSimilar(d); if(sim.length&&!(await dupDialog(sim))) return; }
   autoLevel();
   if(d.type!=='answer'&&d.type!=='exp') d.subs=[];
   if(isChoice(d.type)||d.type==='judge') d.answer='';
   d.updated=Date.now();
+  if(edExam){ saveExamItem(d,andNew); return; }
+  const col=edCollect;
   const q=normQ(clone(d)); const i=bank.questions.findIndex(x=>x.id===q.id);
   if(i>=0) bank.questions[i]=q; else bank.questions.push(q);
   indexQ(q); updateSrcList(); const be=bank.basket.find(e=>e.qid===q.id); if(be) syncSubScores(be,q);
-  persist(); ui.lastType=q.type; ui.lastSource=q.source; ui.lastGrade=q.grade;
-  closeEditor(); render(); toast(i>=0?'已保存修改':'已保存');
+  if(col){ const ex=bank.exams.find(e=>e.id===col.examId), it=ex?.items.find(x=>x.id===col.itemId); if(it){ it.qid=q.id; ex.updated=Date.now(); } }
+  persist(); ui.lastType=q.type; ui.lastGrade=q.grade; if(!col) ui.lastSource=q.source;
+  closeEditor(); render(); toast(col?'已收进题库':i>=0?'已保存修改':'已保存');
   if(andNew) openEditor(null,q.primary);
 }
 async function cancelEditor(){
@@ -2629,7 +2829,11 @@ function demoBank(){
     {id:'q3',type:'fill',stem:'豌豆作为遗传学研究材料的优点有<u class="blank">自花传粉、闭花受粉，自然状态下一般是纯种</u>；具有<u class="blank miss">易于区分的相对性状</u>。',level:2,coef:0.85,primary:'2-1-1',tags:[],levelUnset:true,created:n-3000},
     {id:'q4',type:'answer',stem:'某植物的花色由一对等位基因A、a控制，紫花对白花为显性。两株紫花植株杂交，F<sub>1</sub>中紫花∶白花=3∶1。',subs:[{stem:'亲本的基因型为<u class="blank">Aa、Aa</u>。',score:1},{stem:'F<sub>1</sub>紫花植株自交，后代中白花植株所占比例为<u class="blank">1/6</u>。',analysis:'F<sub>1</sub>紫花中AA占1/3、Aa占2/3，2/3×1/4=1/6。',score:1}],level:4,coef:0.4,source:'2024 某地模拟',primary:'2-1-1',tags:['t1','t3'],created:n-2000},
     {id:'q5',type:'multi',stem:'下列关于减数分裂与分离定律的叙述，正确的是',options:['等位基因的分离发生在减数分裂Ⅰ后期','分离定律的细胞学基础是同源染色体分离','姐妹染色单体分离导致等位基因分离','分离定律适用于原核生物'],key:'AB',wrong:'B',analysis:'C 错误：姐妹染色单体上通常是相同基因；D 错误：分离定律适用于进行有性生殖的真核生物。',extra:'分离定律的实质：在杂合子的细胞中，位于一对同源染色体上的等位基因具有一定的独立性。',level:4,coef:0.4,source:'示例题',primary:'2-2-1',tags:['t4','t1'],created:n-1000}
-   ],notes:[{id:'n1',sec:'2-1-1',title:'假说—演绎法的五个环节',body:'<div>提出问题 → 作出假设 → <b>演绎推理</b> → 实验检验 → 得出结论</div><div>参考：<a href="https://www.bilibili.com/">视频讲解</a></div>',created:n}],basket:[]};
+   ],notes:[{id:'n1',sec:'2-1-1',title:'假说—演绎法的五个环节',body:'<div>提出问题 → 作出假设 → <b>演绎推理</b> → 实验检验 → 得出结论</div><div>参考：<a href="https://www.bilibili.com/">视频讲解</a></div>',created:n}],exams:[{id:'x1',name:'2026 南通一模（示例）',grade:'高三',date:'2026-03-20',items:[{kind:'head',text:'一、单项选择题：本题共 2 小题'},
+    {id:'xi1',type:'single',stem:'下列关于细胞中化合物的叙述，正确的是',options:['蛋白质都含有C、H、O、N、S','DNA和RNA的五碳糖相同','脂肪是细胞内良好的储能物质','无机盐在细胞中都以离子形式存在'],key:'C',wrong:'A',analysis:'并非所有蛋白质都含S；DNA含脱氧核糖；有些无机盐以化合物形式存在。',level:2},
+    {id:'xi2',type:'judge',judges:[{text:'高尔基体参与植物细胞壁的形成',key:'✓'},{text:'核糖体是所有细胞器中唯一含有核酸的',key:'×'}],level:2},
+    {kind:'head',text:'二、非选择题'},
+    {id:'xi3',type:'fill',stem:'光合作用的光反应阶段发生在<u class="blank">类囊体薄膜</u>上，产物有O<sub>2</sub>、<u class="blank">ATP、NADPH</u>。',level:3}]}],basket:[]};
 }
 
 boot();
