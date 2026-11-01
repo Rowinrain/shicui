@@ -647,8 +647,8 @@ pre{background:var(--soft);border:1px solid var(--line2);border-radius:10px;padd
 const APP_VERSION=5; // 数据格式版本（v5：题目编号 no、讲题记录 taught、题集 sets、tag 别名 alias）
 /* 版本号：v1.x 是加入在线更新以前的版本，v2.x 起有在线更新（原 v3.1.0–v3.6.0 即 v2.1.0–v2.6.0）。
    v2.6.0 以前的更新程序只认下面注释里的旧编号（第一位数字加 1），由 tools/release.py 自动填写，不要手改。
-   兼容旧版更新：const PROGRAM_VERSION='3.9.0' */
-const PROGRAM_VERSION='2.9.0'; // 程序版本：重大更新改第一位，小功能改后两位；写好 更新记录.md，再运行 tools/release.py 更新 latest.json
+   兼容旧版更新：const PROGRAM_VERSION='3.9.1' */
+const PROGRAM_VERSION='2.9.1'; // 程序版本：重大更新改第一位，小功能改后两位；写好 更新记录.md，再运行 tools/release.py 更新 latest.json
 const TRASH_DAYS=30;
 /* ================= 教材目录（人教版 2019） ================= */
 const CATALOG_RAW = [
@@ -2793,7 +2793,13 @@ function cardDialog(q,preset){
     <div class="btn-row" style="justify-content:flex-end"><button class="btn" data-x>关闭</button><button class="btn" data-copy>复制图片</button><button class="btn primary" data-save>保存图片</button></div></div>`;
   m.hidden=false;
   let seq=0;
-  const draw=async()=>{ const my=++seq; try{ const b=await cardBlob(q,o); if(my!==seq) return; blob=b; if(url) URL.revokeObjectURL(url); url=URL.createObjectURL(b); $('#cdPrev').innerHTML=`<img src="${url}" alt="分享卡片">`; }catch(e){ console.error(e); $('#cdPrev').innerHTML=`<span class="warn">图片生成失败：${esc(e.message)}</span>`; } };
+  const draw=async()=>{ const my=++seq; try{ const b=await cardBlob(q,o); if(my!==seq) return; blob=b; const nu=URL.createObjectURL(b);
+      // 先在后台解码好新图，再替换原来那张图的地址：预览不会先变空再出现，切换时不闪
+      const pre=new Image(); pre.src=nu; try{ await pre.decode(); }catch(e){}
+      if(my!==seq){ URL.revokeObjectURL(nu); return; }
+      const box=$('#cdPrev'); if(!box){ URL.revokeObjectURL(nu); return; } const im=box.querySelector('img');
+      if(im) im.src=nu; else box.innerHTML=`<img src="${nu}" alt="分享卡片">`;
+      if(url) URL.revokeObjectURL(url); url=nu; }catch(e){ console.error(e); $('#cdPrev').innerHTML=`<span class="warn">图片生成失败：${esc(e.message)}</span>`; } };
   draw(); achvEvent('card');
   m.onclick=async e=>{
     const t=e.target.closest('[data-t]'); if(t){ o.title=t.dataset.t; $$('#cdTitle button').forEach(b=>b.classList.toggle('on',b===t)); draw(); return; }
