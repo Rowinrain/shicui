@@ -31,15 +31,19 @@ a{color:var(--miss)}
 /* ---------- 布局 ---------- */
 #app{display:grid;grid-template-rows:54px 1fr;height:100vh}
 header{display:flex;align-items:center;gap:12px;padding:0 18px;background:var(--side);border-bottom:1px solid var(--line)}
-.brand{font-family:var(--serif);font-weight:600;font-size:18px;cursor:pointer;display:flex;align-items:center;gap:9px;white-space:nowrap;width:262px}
+.brand{font-family:var(--serif);font-weight:600;font-size:18px;cursor:pointer;display:flex;align-items:center;gap:9px;white-space:nowrap;width:calc(var(--side-w,300px) - 38px)}
 .brand svg{flex:none}
 .top-search{flex:1;max-width:520px}
 .top-search input{width:100%;padding:7px 14px;border:1px solid var(--line);border-radius:10px;background:var(--panel);outline:none}
 .top-search input:focus{border-color:var(--accent-b);box-shadow:0 0 0 3px var(--accent-w)}
 #saveStatus{font-size:12px;color:var(--muted);white-space:nowrap}
 #saveStatus.err{color:var(--danger);font-weight:600}
-.layout{display:grid;grid-template-columns:300px 1fr;min-height:0}
-#side{background:var(--side);border-right:1px solid var(--line);overflow:auto;padding:12px 10px 60px}
+.layout{display:grid;grid-template-columns:var(--side-w,300px) 1fr;min-height:0;position:relative}
+#side{background:var(--side);border-right:1px solid var(--line);overflow:auto;scrollbar-gutter:stable;padding:12px 10px 60px}
+#sideResize{position:absolute;top:0;bottom:0;left:calc(var(--side-w,300px) - 4px);width:8px;cursor:col-resize;z-index:5}
+#sideResize::after{content:'';position:absolute;top:0;bottom:0;left:3px;width:2px;background:transparent;transition:background .15s}
+#sideResize:hover::after,#sideResize.on::after{background:var(--accent-b)}
+body.side-dragging{cursor:col-resize;user-select:none}
 #main{overflow:auto;padding:26px 32px 120px}
 .main-inner{max-width:980px;margin:0 auto}
 
@@ -449,6 +453,7 @@ pre{background:#fbf8f2;border:1px solid var(--line2);border-radius:10px;padding:
   </header>
   <div class="layout">
     <nav id="side"><div class="grade-switch" id="gradeSwitch"></div><div class="tree-title">人教版（2019）· 目录</div><div id="tree"></div></nav>
+    <div id="sideResize" title="拖动调节目录宽度，双击恢复默认"></div>
     <main id="main"></main>
   </div>
 </div>
@@ -462,7 +467,7 @@ pre{background:#fbf8f2;border:1px solid var(--line2);border-radius:10px;padding:
 <script>
 'use strict';
 const APP_VERSION=3; // 数据格式版本
-const PROGRAM_VERSION='3.3.1'; // 程序版本：发布新版时改大，写好 更新记录.md，再运行 tools/release.py 更新 latest.json
+const PROGRAM_VERSION='3.4.0'; // 程序版本：发布新版时改大，写好 更新记录.md，再运行 tools/release.py 更新 latest.json
 const TRASH_DAYS=30;
 /* ================= 教材目录（人教版 2019） ================= */
 const CATALOG_RAW = [
@@ -692,7 +697,7 @@ function normQ(q){
 }
 function normalizeBank(d){
   const settings=clone(DEFAULT_SETTINGS);
-  if(d.settings){ Object.assign(settings.coef,d.settings.coef||{}); Object.assign(settings.score,d.settings.score||{}); if(d.settings.grade) settings.grade=d.settings.grade; if(d.settings.print&&typeof d.settings.print==='object') settings.print=d.settings.print; }
+  if(d.settings){ Object.assign(settings.coef,d.settings.coef||{}); Object.assign(settings.score,d.settings.score||{}); if(d.settings.grade) settings.grade=d.settings.grade; if(d.settings.sideW!=null) settings.sideW=clampSideW(d.settings.sideW); if(d.settings.print&&typeof d.settings.print==='object') settings.print=d.settings.print; }
   bank={version:APP_VERSION,settings,topics:[],tags:[],questions:[],notes:[],basket:[],papers:[],basketPaper:'',trash:[]};
   bank.topics=(d.topics||[]).filter(t=>t&&t.id&&t.name);
   applyTopics();
@@ -833,6 +838,7 @@ async function openStore(demo){
   if(!text||upgraded||purged) await store.writeText('bank.json',JSON.stringify(bank));
   try{ await dailyBackup(); }catch(e){ console.warn(e); }
   Object.assign(ui,{view:'home',sec:null,f:freshFilter(),sf:freshFilter(),tagManage:false,grade:bank.settings.grade||'all',bulk:false,sel:new Set()});
+  applySideW(bank.settings.sideW);
   $('#gate').hidden=true; $('#app').hidden=false; setStatus(demo?'演示模式':'已保存');
   render(true);
   let updated=null; try{ updated=sessionStorage.getItem('shicui-updated'); sessionStorage.removeItem('shicui-updated'); }catch(e){}
@@ -901,6 +907,19 @@ function countsAll(){
   }
   return c;
 }
+/* 左侧目录宽度：拖动分隔线调节（限定范围），双击恢复默认；保存在 settings.sideW */
+const SIDE_W={def:300,min:260,max:400};
+function clampSideW(w){ w=Number(w); return Math.round(Number.isFinite(w)&&w>0?Math.min(SIDE_W.max,Math.max(SIDE_W.min,w)):SIDE_W.def); }
+function applySideW(w){ document.documentElement.style.setProperty('--side-w',clampSideW(w)+'px'); }
+(()=>{
+  const h=$('#sideResize'); let x0=0,w0=0,cur=0;
+  const save=w=>{ if(w===clampSideW(bank.settings.sideW)) return; if(w===SIDE_W.def) delete bank.settings.sideW; else bank.settings.sideW=w; persist(); };
+  h.addEventListener('pointerdown',e=>{ if(e.button!==0) return; e.preventDefault(); h.setPointerCapture(e.pointerId); x0=e.clientX; w0=cur=$('#side').getBoundingClientRect().width; h.classList.add('on'); document.body.classList.add('side-dragging'); });
+  h.addEventListener('pointermove',e=>{ if(!h.classList.contains('on')) return; cur=clampSideW(w0+e.clientX-x0); applySideW(cur); });
+  const end=()=>{ if(!h.classList.contains('on')) return; h.classList.remove('on'); document.body.classList.remove('side-dragging'); save(cur); };
+  h.addEventListener('pointerup',end); h.addEventListener('pointercancel',end);
+  h.addEventListener('dblclick',()=>{ applySideW(SIDE_W.def); save(SIDE_W.def); });
+})();
 function renderTree(){
   const c=countsAll(); let h='';
   for(const b of CATALOG){
