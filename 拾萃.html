@@ -479,7 +479,10 @@ pre{background:#fbf8f2;border:1px solid var(--line2);border-radius:10px;padding:
 <script>
 'use strict';
 const APP_VERSION=4; // 数据格式版本
-const PROGRAM_VERSION='3.6.0'; // 程序版本：发布新版时改大，写好 更新记录.md，再运行 tools/release.py 更新 latest.json
+/* 版本号：v1.x 是加入在线更新以前的版本，v2.x 起有在线更新（原 v3.1.0–v3.6.0 即 v2.1.0–v2.6.0）。
+   v2.6.0 以前的更新程序只认下面注释里的旧编号（第一位数字加 1），由 tools/release.py 自动填写，不要手改。
+   兼容旧版更新：const PROGRAM_VERSION='3.7.0' */
+const PROGRAM_VERSION='2.7.0'; // 程序版本：重大更新改第一位，小功能改后两位；写好 更新记录.md，再运行 tools/release.py 更新 latest.json
 const TRASH_DAYS=30;
 /* ================= 教材目录（人教版 2019） ================= */
 const CATALOG_RAW = [
@@ -1968,7 +1971,9 @@ function updateSources(){
 }
 function cmpVer(a,b){ const x=String(a).split('.').map(n=>+n||0), y=String(b).split('.').map(n=>+n||0);
   for(let i=0;i<Math.max(x.length,y.length);i++){ const d=(x[i]||0)-(y[i]||0); if(d) return d>0?1:-1; } return 0; }
-function programVersionOf(text){ const m=/const PROGRAM_VERSION='([\d.]+)'/.exec(text||''); return m&&/<title>拾萃/.test(text)?m[1]:null; }
+/* 读出 拾萃.html 的版本号。v2.7.0 以前的文件还用旧编号 3.x.x（即现在的 2.x.x），换算过来。 */
+function programVersionOf(text){ text=text||''; const m=/^const PROGRAM_VERSION='([\d.]+)'/m.exec(text); if(!m||!/<title>拾萃/.test(text)) return null;
+  return /兼容旧版更新：/.test(text)?m[1]:m[1].replace(/^3\./,'2.'); }
 function netError(e,ms){ if(e.name==='AbortError') return `连接超时（${ms/1000} 秒）`; if(e instanceof TypeError) return '连接失败（网络不通或被拦截）'; return e.message; }
 async function fetchTimed(url,ms,asText,onBytes,total){
   const ac=new AbortController(); const t=setTimeout(()=>ac.abort(),ms); let got=0;
@@ -1990,15 +1995,17 @@ async function sha256Hex(buf){ const h=await crypto.subtle.digest('SHA-256',buf)
 function parseLatest(text){
   let d; try{ d=JSON.parse(text); }catch(e){ throw new Error('更新信息格式不对'); }
   if(d.format!=='shicui-latest'||!/^[\d.]+$/.test(d.version||'')||!/^[0-9a-f]{64}$/.test(d.sha256||'')) throw new Error('更新信息格式不对');
+  // version 是给 v2.6.0 以前的程序看的旧编号，release 才是真正的版本号
+  if(!/^[\d.]+$/.test(d.release||'')) d.release=String(d.version).replace(/^(\d+)/,n=>String(Math.max(1,n-1)));
   return d;
 }
 /* 取更新信息：GitHub 直连成功就用它；否则需要至少两个加速来源给出相同的版本号和 sha256。 */
 async function fetchLatest(log){
   const src=updateSources(), ok=[], why=[];
-  try{ const d=parseLatest(await fetchTimed(src[0].url('latest.json'),10000,true)); log(`从 GitHub 获取更新信息：最新版本 v${d.version}`); return {info:d,via:'GitHub',order:src}; }
+  try{ const d=parseLatest(await fetchTimed(src[0].url('latest.json'),10000,true)); log(`从 GitHub 获取更新信息：最新版本 v${d.release}`); return {info:d,via:'GitHub',order:src}; }
   catch(e){ log(`GitHub：${e.message}，改用国内加速地址`); why.push(`GitHub：${e.message}`); }
   const rest=src.slice(1);
-  const results=await Promise.all(rest.map(async s=>{ try{ const d=parseLatest(await fetchTimed(s.url('latest.json'),12000,true)); log(`${s.name}：最新版本 v${d.version}`); why.push(`${s.name}：能连上，最新版本 v${d.version}`); return {s,d}; }catch(e){ log(`${s.name}：${e.message}`); why.push(`${s.name}：${e.message}`); return null; } }));
+  const results=await Promise.all(rest.map(async s=>{ try{ const d=parseLatest(await fetchTimed(s.url('latest.json'),12000,true)); log(`${s.name}：最新版本 v${d.release}`); why.push(`${s.name}：能连上，最新版本 v${d.release}`); return {s,d}; }catch(e){ log(`${s.name}：${e.message}`); why.push(`${s.name}：${e.message}`); return null; } }));
   for(const r of results) if(r) ok.push(r);
   const groups=new Map(); ok.forEach(r=>{ const k=r.d.version+'|'+r.d.sha256; if(!groups.has(k)) groups.set(k,[]); groups.get(k).push(r); });
   const best=[...groups.values()].filter(g=>g.length>=2).sort((a,b)=>cmpVer(b[0].d.version,a[0].d.version))[0];
@@ -2016,7 +2023,7 @@ async function downloadProgram(latest,log,stage,bytes){
     stage('verify','正在校验 sha256…');
     if(await sha256Hex(buf)!==latest.info.sha256){ bad++; log(`${s.name} 下载的文件 sha256 校验不通过（文件不完整、版本不同或被修改），已丢弃`); why.push(`${s.name}：下载完成，但 sha256 校验不通过`); continue; }
     const text=new TextDecoder().decode(buf);
-    if(programVersionOf(text)!==latest.info.version){ bad++; log(`${s.name} 下载的文件版本号不对，已丢弃`); why.push(`${s.name}：下载完成，但版本号不对`); continue; }
+    if(programVersionOf(text)!==latest.info.release){ bad++; log(`${s.name} 下载的文件版本号不对，已丢弃`); why.push(`${s.name}：下载完成，但版本号不对`); continue; }
     log(`从 ${s.name} 下载完成（${(buf.byteLength/1024).toFixed(0)} KB），sha256 校验通过`);
     return text;
   }
@@ -2087,13 +2094,13 @@ async function checkUpdate(){
   try{
     const latest=await fetchLatest(t=>lines.push(t));
     const via=latest.via!=='GitHub'?`<div class="hint">（GitHub 直连失败，已通过 ${esc(latest.via)} 获取）</div>`:'';
-    if(cmpVer(latest.info.version,PROGRAM_VERSION)<=0){ res.innerHTML=`<div class="upd-ok">已经是最新版本（v${esc(PROGRAM_VERSION)}）。</div>${via}`; return; }
+    if(cmpVer(latest.info.release,PROGRAM_VERSION)<=0){ res.innerHTML=`<div class="upd-ok">已经是最新版本（v${esc(PROGRAM_VERSION)}）。</div>${via}`; return; }
     showUpdateFound(latest,via);
   }catch(e){ res.innerHTML=errorHTML(e.step?e:stepError('获取更新信息',e.message)); }
 }
 function showUpdateFound(latest,via){
   const res=$('#updRes'); if(!res) return;
-  res.innerHTML=`<div class="upd-new">发现新版本 <b>v${esc(latest.info.version)}</b>${latest.info.date?`（${esc(latest.info.date)}）`:''}，当前是 v${esc(PROGRAM_VERSION)}。
+  res.innerHTML=`<div class="upd-new">发现新版本 <b>v${esc(latest.info.release)}</b>${latest.info.date?`（${esc(latest.info.date)}）`:''}，当前是 v${esc(PROGRAM_VERSION)}。
       ${latest.info.notes?`<div class="upd-notes">${esc(latest.info.notes)}</div>`:''}${via||''}</div>
       <div class="btn-row" style="margin-top:8px"><button class="btn primary" id="updGo">下载并更新</button></div>`;
   $('#updGo').onclick=()=>runOnlineUpdate(latest);
@@ -2116,26 +2123,26 @@ function scheduleAutoUpdateCheck(){
 async function autoCheckUpdate(){
   if(updBusy||!autoUpdateOn()) return;
   let latest; try{ latest=await fetchLatest(()=>{}); }catch(e){ console.warn('自动检查更新失败：',e.message); return; }
-  if(cmpVer(latest.info.version,PROGRAM_VERSION)<=0) return;
+  if(cmpVer(latest.info.release,PROGRAM_VERSION)<=0) return;
   autoUpdFound=latest;
-  let skip=null; try{ skip=localStorage.getItem('shicui-upd-skip'); }catch(e){}
-  if(skip&&cmpVer(latest.info.version,skip)<=0) return;
+  let skip=null; try{ skip=localStorage.getItem('shicui-upd-skip2'); }catch(e){}
+  if(skip&&cmpVer(latest.info.release,skip)<=0) return;
   const box=$('#updNotice');
-  box.innerHTML=`<div>发现新版本 <b>v${esc(latest.info.version)}</b>，当前是 v${esc(PROGRAM_VERSION)}。</div>
+  box.innerHTML=`<div>发现新版本 <b>v${esc(latest.info.release)}</b>，当前是 v${esc(PROGRAM_VERSION)}。</div>
     ${latest.info.notes?`<details style="margin-top:4px"><summary class="hint">更新内容</summary><div class="upd-notes">${esc(latest.info.notes)}</div></details>`:''}
     <div class="btn-row"><button class="btn primary small" id="updNoticeGo">去更新</button><button class="btn ghost small" id="updNoticeLater">以后再说</button></div>`;
   box.hidden=false;
   $('#updNoticeGo').onclick=()=>{ box.hidden=true; go('settings'); showUpdateFound(latest,''); $('#updRes')?.scrollIntoView({block:'center'}); };
-  $('#updNoticeLater').onclick=()=>{ box.hidden=true; try{ localStorage.setItem('shicui-upd-skip',latest.info.version); }catch(e){} };
+  $('#updNoticeLater').onclick=()=>{ box.hidden=true; try{ localStorage.setItem('shicui-upd-skip2',latest.info.release); }catch(e){} };
 }
 async function runOnlineUpdate(latest){
   if(updBusy) return;
   const h=await programHandle(false); if(!h) return; // 先在点击时拿到权限，下载完成后再写入
   updBusy=true; $('#updRes').innerHTML=''; const p=updProgress('online');
   try{
-    p.stage('manifest','正在核对更新信息…'); p.log('程序文件：'+h.name); p.log(`最新版本 v${latest.info.version}（更新信息来自 ${latest.via}）`);
+    p.stage('manifest','正在核对更新信息…'); p.log('程序文件：'+h.name); p.log(`最新版本 v${latest.info.release}（更新信息来自 ${latest.via}）`);
     const text=await downloadProgram(latest,p.log,p.stage,p.bytes);
-    await installProgram(h,text,latest.info.version,p.log,p.stage);
+    await installProgram(h,text,latest.info.release,p.log,p.stage);
   }catch(e){ console.error(e); p.log('失败：'+(e.message||e)+(e.detail&&e.detail.length?'（'+e.detail.join('；')+'）':'')); p.fail(e); updBusy=false; }
 }
 async function updateFromFile(){
