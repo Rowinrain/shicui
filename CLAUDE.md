@@ -45,6 +45,8 @@
 程序内“设置 → 程序更新”读取 main 分支上的 `latest.json`（raw.githubusercontent.com，连不上时用 jsDelivr 和 ghfast.top 等加速地址，需两个来源一致），下载 拾萃.html 并按 sha256 校验后写入用户选中的 拾萃.html（句柄存在 IndexedDB `program`），旧版备份到 backups/。所以**合并到 main 就是发布**：
 
 1. 改 拾萃.html 时把 `PROGRAM_VERSION` 改大（只改了说明文档可以不改）；数据格式变了另外提升 `APP_VERSION`。
+   - 版本号规则（用户定的）：v1.x 是加入在线更新以前的版本，v2.x 起有在线更新。小功能更新改后两位（2.7.0 → 2.8.0 / 2.7.1），只有重大更新才改第一位（v3.0.0），以此类推。
+   - 兼容旧编号：v2.1.0–v2.6.0 当时编号为 3.1.0–3.6.0，它们的更新程序读 latest.json 的 `version`，并核对下载文件里第一个 `const PROGRAM_VERSION='…'`。所以 latest.json 的 `version` 和 拾萃.html 里 `兼容旧版更新：const PROGRAM_VERSION='…'` 注释都写“第一位加 1”的旧编号，真正的版本号在 `release` 字段；release.py 会自动改好，不要删那行注释。程序内比较版本一律用 `release`，`programVersionOf` 把没有该注释的旧文件 3.x 换算成 2.x。
 2. 在 `更新记录.md` 顶部加 `## v新版本号` 和更新内容（用户会在更新提示里看到）。
 3. 运行 `python3 tools/release.py` 重新生成 latest.json，一起提交。GitHub Actions 会用 `--check` 检查三者是否一致；拾萃.html 改了但 latest.json 没重新生成，用户更新时 sha256 会校验失败。
 4. 顺带更新 `README.md`（使用说明，面向第一次下载的人：下载、用 Chrome 打开、选数据文件夹、主要功能、更新）。在线更新只替换 拾萃.html，不会改动用户本地的说明，这是有意的。
