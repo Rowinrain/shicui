@@ -344,8 +344,12 @@ details.panel[open]>summary:before{transform:rotate(90deg)}
 .bulkbar b{font-weight:600}
 
 /* ---------- 设置 ---------- */
-.set-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px 18px}
-.set-grid label{display:flex;align-items:center;justify-content:flex-start;gap:10px;font-size:13.5px}
+.set-grid{display:grid;grid-template-columns:repeat(3,max-content max-content);gap:8px 10px;align-items:center;font-size:13.5px}
+.set-grid label{display:contents}
+.set-grid label>span,.set-grid label>input{margin-right:44px}
+.set-grid input[type=number]{width:58px}
+.set-grid input[data-set^="coef."]{width:66px}
+@media (max-width:1100px){.set-grid{grid-template-columns:repeat(2,max-content max-content)}}
 details{margin-top:10px}
 summary{cursor:pointer;color:var(--accent-d);font-size:13.5px}
 pre{background:#fbf8f2;border:1px solid var(--line2);border-radius:10px;padding:12px 14px;font-size:12px;line-height:1.6;overflow:auto;white-space:pre}
@@ -458,7 +462,7 @@ pre{background:#fbf8f2;border:1px solid var(--line2);border-radius:10px;padding:
 <script>
 'use strict';
 const APP_VERSION=3; // 数据格式版本
-const PROGRAM_VERSION='3.3.0'; // 程序版本：发布新版时改大，写好 更新记录.md，再运行 tools/release.py 更新 latest.json
+const PROGRAM_VERSION='3.3.1'; // 程序版本：发布新版时改大，写好 更新记录.md，再运行 tools/release.py 更新 latest.json
 const TRASH_DAYS=30;
 /* ================= 教材目录（人教版 2019） ================= */
 const CATALOG_RAW = [
