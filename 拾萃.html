@@ -290,21 +290,35 @@ details.panel[open]>summary:before{transform:rotate(90deg)}
   body.printing #printArea{display:block}
 }
 .pt{font-family:"Songti SC","STSong","SimSun","Times New Roman",serif;font-size:var(--pt-size);line-height:1.75;color:#000}
-#printArea{--pt-size:12pt}
+#printArea{--pt-size:10.5pt}
 .pt .rendered{font-size:var(--pt-size);line-height:1.75}
 .pt .rendered img{max-width:100%;max-height:120mm}
 .pt .rendered td,.pt .rendered th{border-color:#000}
 .pt .blank{text-decoration-color:#000}
 .pt-break{break-before:page}
-.pt-head{text-align:center;margin-bottom:10pt}
-.pt-title{font-size:calc(var(--pt-size) * 1.45);font-weight:700;letter-spacing:.05em}
-.pt-info{margin-top:4pt}
-.pt-group{font-weight:700;margin:10pt 0 4pt;break-after:avoid}
+.pt-secret{font-family:"Heiti SC","STHeiti","SimHei",sans-serif;font-weight:700;margin-bottom:2pt}
+.pt-title{text-align:center;font-size:calc(var(--pt-size) * 1.45);font-weight:700;letter-spacing:.03em;margin-bottom:3pt;break-after:avoid}
+.pt-subtitle{text-align:center;font-size:calc(var(--pt-size) * 1.2);font-weight:700;margin-bottom:3pt;break-after:avoid}
+.pt-meta{text-align:center;margin-bottom:3pt}
+.pt-tbl{border-collapse:collapse;break-inside:avoid}
+.pt-tbl td{border:1px solid #000;text-align:center;min-width:3.2em;height:1.9em;padding:0 4pt;line-height:1.3}
+.pt-total{margin:6pt auto}
+.pt-notice{margin:4pt 0 6pt}
+.pt-notice div:first-child{font-weight:700}
+.pt-part{text-align:center;font-weight:700;font-size:calc(var(--pt-size) * 1.1);margin:8pt 0 4pt;break-after:avoid}
+.pt-group{display:flex;align-items:center;gap:8pt;font-weight:700;margin:10pt 0 4pt;break-after:avoid;break-inside:avoid}
+.pt-grader td{min-width:2.8em;font-weight:400;font-size:.9em}
+.pt-qans{margin-top:2pt}
+.pt-arow{display:flex;flex-wrap:wrap;margin:0 0 2pt}
+.pt-arow span{width:20%}
+.pt.sealed{padding-left:20mm}
+.pt-seal{position:fixed;top:0;bottom:0;left:0;width:16mm}
+.pt-seal-in{position:absolute;left:50%;top:50%;width:240mm;transform:translate(-50%,-50%) rotate(-90deg);text-align:center;font-size:9pt;line-height:2.2;white-space:nowrap}
 .pt-q{display:flex;margin:0 0 6pt;break-inside:avoid}
 .pt-q.long{break-inside:auto}
 .pt-no{flex:none;min-width:1.6em}
 .pt-body{flex:1;min-width:0}
-.pt-sc{float:right;font-size:.9em}
+.pt-sc{margin-right:2pt}
 .pt-space{height:5.5em}
 .pt-ans{margin:0 0 4pt;break-inside:avoid}
 #printArea.a3 .pt-cols{column-count:2;column-gap:14mm;column-rule:1px solid #888}
@@ -362,6 +376,10 @@ pre{background:#fbf8f2;border:1px solid var(--line2);border-radius:10px;padding:
 #edSource{width:300px}
 #edQno{width:90px}
 .chk{display:inline-flex;align-items:center;gap:5px;font-size:13px;color:#4a473f;cursor:pointer}
+.modal-card.ex-card{width:600px;max-height:92vh;overflow:auto}
+.ex-card .form-row>span:first-child{width:60px}
+.ex-chks{display:flex;flex-wrap:wrap;gap:4px 16px}
+.ex-card .seg button{white-space:nowrap}
 .ed-sec{margin-bottom:14px}
 .ed-lbl{font-weight:600;margin:0 0 5px 2px;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
 .mini-lbl{font-size:12.5px;color:var(--muted);margin:4px 0 3px}
@@ -440,7 +458,7 @@ pre{background:#fbf8f2;border:1px solid var(--line2);border-radius:10px;padding:
 <script>
 'use strict';
 const APP_VERSION=3; // 数据格式版本
-const PROGRAM_VERSION='3.2.1'; // 程序版本：发布新版时改大，写好 更新记录.md，再运行 tools/release.py 更新 latest.json
+const PROGRAM_VERSION='3.3.0'; // 程序版本：发布新版时改大，写好 更新记录.md，再运行 tools/release.py 更新 latest.json
 const TRASH_DAYS=30;
 /* ================= 教材目录（人教版 2019） ================= */
 const CATALOG_RAW = [
@@ -947,7 +965,7 @@ function renderHome(){
   <div class="stat-row" style="margin-top:0">${todo.map(([v,l,n])=>`<div class="stat link${n?'':' zero'}" data-act="gostatus" data-v="${v}"><div class="sv">${n}</div><div class="sl">${l}</div></div>`).join('')}</div>
   <div class="ws-cols">
     <div class="panel"><div class="panel-title">最近录入</div>${recentQ.length?recentQ.map(q=>`<div class="ws-item" data-act="homesec" data-id="${q.primary}"><span class="badge t-${q.type}">${TYPES[q.type]}</span><span class="ws-txt">${esc(qSnippet(q,40))}</span><span class="hint">${esc(SECTIONS[q.primary].short)}</span></div>`).join(''):'<div class="hint">还没有题目。点上面的“录入新题”开始。</div>'}</div>
-    <div class="panel"><div class="panel-title">最近试卷<span class="sp"></span>${bank.papers.length>recentP.length?'<button class="btn ghost small" data-nav="papers">全部</button>':''}</div>${recentP.length?recentP.map(p=>{ const st=paperStats(p); return `<div class="ws-item ws-paper" data-pid="${p.id}"><span class="ws-txt"><b>${esc(p.name)}</b><span class="hint">${p.date?p.date+' · ':''}${st.n} 道题 · ${fmt(st.total)} 分</span></span><button class="btn small" data-act="paperload">打开到试题篮</button><button class="btn small ghost" data-act="paperprint">打印</button></div>`; }).join(''):'<div class="hint">在试题篮里组好卷后点“保存为试卷”，就会出现在这里。</div>'}</div>
+    <div class="panel"><div class="panel-title">最近试卷<span class="sp"></span>${bank.papers.length>recentP.length?'<button class="btn ghost small" data-nav="papers">全部</button>':''}</div>${recentP.length?recentP.map(p=>{ const st=paperStats(p); return `<div class="ws-item ws-paper" data-pid="${p.id}"><span class="ws-txt"><b>${esc(p.name)}</b><span class="hint">${p.date?p.date+' · ':''}${st.n} 道题 · ${fmt(st.total)} 分</span></span><button class="btn small" data-act="paperload">打开到试题篮</button><button class="btn small ghost" data-act="paperprint">导出</button></div>`; }).join(''):'<div class="hint">在试题篮里组好卷后点“保存为试卷”，就会出现在这里。</div>'}</div>
   </div>
   <div class="ws-title">教材目录</div>
   <div class="books">${[...CATALOG,BOOKS.Z].map(b=>`<div class="book-card" data-act="openbook" data-id="${b.id}"><div class="bn">${esc(b.name)}</div><div class="hint">${b.id==='Z'?TOPIC_CHAP.sections.length+' 个专题':b.chapters.length+' 章'} · ${c.book[b.id]||0} 道题</div></div>`).join('')}</div>
@@ -1238,7 +1256,7 @@ function renderBasket(){
   const list=basketOrdered();
   const bp=bank.papers.find(p=>p.id===bank.basketPaper);
   const head=`<div class="view-head"><div><div class="crumb">点击题目展开答案与解析；拖动左侧 ⋮⋮ 调整顺序（同一题型内）</div><h2>试题篮 · 预排版</h2></div><span class="sp"></span>
-    ${list.length?`<div class="btn-row"><button class="btn small primary" data-act="print">打印 / 存 PDF</button><button class="btn small" data-act="copyall">复制全部题目</button><button class="btn small" data-act="copyallans">复制全部答案解析</button><button class="btn small danger" data-act="clearbasket">清空</button></div>`:''}</div>
+    ${list.length?`<div class="btn-row"><button class="btn small primary" data-act="print">导出试卷（Word / PDF）</button><button class="btn small" data-act="copyall">复制全部题目</button><button class="btn small" data-act="copyallans">复制全部答案解析</button><button class="btn small danger" data-act="clearbasket">清空</button></div>`:''}</div>
     ${list.length?`<div class="panel row-between"><div>${bp?`当前是试卷「<b>${esc(bp.name)}</b>」${bp.date?`<span class="hint">（${bp.date}）</span>`:''}`:'<span class="hint">把试题篮保存为试卷，以后可以重新打开；每道题会记下用在了哪些试卷里。</span>'}</div>
       <div class="btn-row">${bp?'<button class="btn small" data-act="papersave">保存修改到这份试卷</button><button class="btn small ghost" data-act="papersaveas">另存为新试卷</button>':'<button class="btn small" data-act="papersaveas">保存为试卷</button>'}</div></div>`:''}`;
   if(!list.length){ setMain(head+`<div class="empty">试题篮是空的。<br>在题目卡片上勾选“选入试题篮”，题目就会出现在这里。</div>`); return; }
@@ -1296,7 +1314,7 @@ function renderPapers(){
   setMain(head+list.map(p=>{ const st=paperStats(p);
     return `<div class="paper" data-pid="${p.id}"><div class="pp-main"><div class="pp-name">${esc(p.name)}${bank.basketPaper===p.id?' <span class="badge used">试题篮中</span>':''}</div>
       <div class="hint">${p.date?p.date+' · ':''}${st.n} 道题 · 共 ${fmt(st.total)} 分${st.miss?` · ${st.miss} 道题已删除`:''}</div></div>
-      <div class="btn-row"><button class="btn small primary" data-act="paperload">打开到试题篮</button><button class="btn small" data-act="paperprint">打印</button><button class="btn small ghost" data-act="paperedit">改名称/日期</button><button class="btn small ghost danger" data-act="paperdel">删除</button></div></div>`; }).join(''));
+      <div class="btn-row"><button class="btn small primary" data-act="paperload">打开到试题篮</button><button class="btn small" data-act="paperprint">导出 Word / PDF</button><button class="btn small ghost" data-act="paperedit">改名称/日期</button><button class="btn small ghost danger" data-act="paperdel">删除</button></div></div>`; }).join(''));
 }
 function paperForm(p){ return new Promise(res=>{
   const m=$('#modal');
@@ -1310,51 +1328,138 @@ function paperForm(p){ return new Promise(res=>{
   m.onclick=e=>{ if(e.target.closest('[data-ok]')) ok(); else if(e.target.closest('[data-x]')){ m.hidden=true; res(null); } };
 }); }
 
-/* ---------- 打印 / 存 PDF ---------- */
+/* ---------- 导出试卷（Word / PDF） ----------
+   版式参照常见组卷平台的试卷下载格式：
+   标准版：装订线（学校、姓名、班级、考号）、“绝密★启用前”、主/副标题、考试信息、总分栏、注意事项、第Ⅰ卷/第Ⅱ卷、每道大题前的评分栏；
+   测验版：标题下写学校、姓名、班级、考号；作业版：标题下写班级、姓名。
+   答案可以不含、附在卷尾（另起一页，页脚写“答案第 x 页”）、写在每题后（教师用卷），或只导出答案。
+   先生成一份与格式无关的“版面”（paperModel），再分别排成打印用的 HTML（PDF）和 Word 文件。 */
 const CN_NUM='一二三四五六七八九十';
-function printDialog(list,title){
-  if(!list.length){ toast('没有可以打印的题目'); return; }
-  const o=Object.assign({title:'',content:'stu',paper:'a4',size:'12',score:true,info:true,space:true},bank.settings.print||{}); o.title=title||'';
+const EXPORT_DEF={fmt:'docx',style:'std',ans:'none',analysis:true,paper:'a4',size:'10.5',score:true,space:true,seal:true,secret:true,scoreTbl:true,notice:true,parts:true,grader:true,subtitle:'',meta:''};
+const SEAL_INFO='学校：＿＿＿＿＿＿＿＿＿　姓名：＿＿＿＿＿＿＿＿＿　班级：＿＿＿＿＿＿＿＿＿　考号：＿＿＿＿＿＿＿＿＿';
+const SEAL_LINE='…………○…………装…………○…………订…………○…………线…………○…………';
+const NOTICE=['注意事项：','1．答题前填写好自己的姓名、班级、考号等信息。','2．请将答案正确填写在答题卡上。'];
+function exportOpts(){
+  const s=bank.settings.print||{}; const o=Object.assign({},EXPORT_DEF,s);
+  if(!s.ans&&s.content) o.ans={stu:'none',ans:'only',both:'end'}[s.content]||'none'; // 旧版打印选项
+  delete o.content; delete o.info; return o;
+}
+function exportDialog(list,title){
+  if(!list.length){ toast('没有可以导出的题目'); return; }
+  const o=exportOpts(); o.title=title||'';
   const seg=(k,opts)=>`<div class="seg" data-pk="${k}">${opts.map(([v,l])=>`<button data-v="${v}" class="${o[k]===v?'on':''}">${l}</button>`).join('')}</div>`;
+  const chk=(k,l)=>`<label class="chk"><input type="checkbox" data-ck="${k}" ${o[k]?'checked':''}>${l}</label>`;
   const m=$('#modal');
-  m.innerHTML=`<div class="modal-card" style="width:520px"><h3>打印 / 存 PDF</h3>
-    <label class="form-row"><span>标题</span><input id="ptTitle" value="${esc(o.title)}" placeholder="例如：高三 10 月月考 生物"></label>
-    <div class="form-row"><span>内容</span>${seg('content',[['stu','学生卷'],['ans','答案卷'],['both','学生卷 + 答案卷']])}</div>
+  m.innerHTML=`<div class="modal-card ex-card"><h3>导出试卷</h3>
+    <div class="form-row"><span>文件格式</span>${seg('fmt',[['docx','Word 文档（.docx）'],['pdf','PDF / 打印']])}</div>
+    <label class="form-row"><span>主标题</span><input id="exTitle" value="${esc(o.title)}" placeholder="例如：2026—2027 学年高三 10 月月考"></label>
+    <label class="form-row"><span>副标题</span><input id="exSub" value="${esc(o.subtitle)}" placeholder="例如：生物试卷（可以不填）"></label>
+    <label class="form-row"><span>考试信息</span><input id="exMeta" value="${esc(o.meta)}" placeholder="例如：考试时间：75 分钟（可以不填）"></label>
+    <div class="form-row"><span>版式</span>${seg('style',[['std','标准'],['test','测验'],['hw','作业']])}</div>
+    <div class="form-row ex-std"><span></span><div class="ex-chks">${chk('seal','装订线（学校、姓名、班级、考号）')}${chk('secret','“绝密★启用前”')}${chk('scoreTbl','总分栏')}${chk('notice','注意事项')}${chk('parts','分为第Ⅰ卷（选择题）和第Ⅱ卷（非选择题）')}${chk('grader','每道大题前加评分栏')}</div></div>
+    <div class="form-row ex-sub"><span></span><div class="hint ex-subhint"></div></div>
+    <div class="form-row"><span>答案</span>${seg('ans',[['none','不含答案'],['end','附在卷尾'],['each','每题后'],['only','只要答案']])}</div>
+    <div class="form-row ex-ana"><span></span><div class="ex-chks">${chk('analysis','答案带解析')}<span class="hint ex-anahint"></span></div></div>
     <div class="form-row"><span>纸张</span>${seg('paper',[['a4','A4 竖版'],['a3','A3 横版两栏']])}</div>
     <div class="form-row"><span>字号</span>${seg('size',[['10.5','五号'],['12','小四'],['14','四号']])}</div>
-    <div class="form-row"><span></span><div style="display:flex;flex-direction:column;gap:4px">
-      <label class="chk"><input type="checkbox" id="ptScore" ${o.score?'checked':''}>标注分值</label>
-      <label class="chk"><input type="checkbox" id="ptInfo" ${o.info?'checked':''}>标题下加“班级、姓名、学号”</label>
-      <label class="chk"><input type="checkbox" id="ptSpace" ${o.space?'checked':''}>解答题、实验题下方留作答空白</label></div></div>
-    <p class="hint" style="margin:10px 0 0">点“打印”后会打开打印窗口：目标打印机选“另存为 PDF”即可得到 PDF 文件。在“更多设置”里取消勾选“页眉和页脚”，可以去掉页面顶部的网址和日期。</p>
-    <div class="btn-row" style="justify-content:flex-end;margin-top:14px"><button class="btn" data-x>取消</button><button class="btn primary" data-ok>打印</button></div></div>`;
-  m.hidden=false;
+    <div class="form-row"><span></span><div class="ex-chks">${chk('score','标注分值')}${chk('space','解答题、实验题下方留作答空白')}</div></div>
+    <p class="hint ex-hint"></p>
+    <div class="btn-row" style="justify-content:flex-end;margin-top:14px"><button class="btn" data-x>取消</button><button class="btn primary" data-ok>导出</button></div></div>`;
+  const sync=()=>{
+    $('.ex-std',m).hidden=o.style!=='std';
+    $('.ex-subhint',m).textContent=o.style==='test'?'标题下写“学校、姓名、班级、考号”。':o.style==='hw'?'标题下写“班级、姓名”。':'';
+    $('.ex-sub',m).hidden=o.style==='std';
+    $('.ex-ana',m).hidden=o.ans==='none';
+    $('.ex-anahint',m).textContent={end:'答案另起一页，放在试卷最后。',each:'每道题后面紧跟答案，适合做教师用卷。',only:'只导出答案，适合单独发给学生对答案。'}[o.ans]||'';
+    $('.ex-hint',m).textContent=o.fmt==='docx'?'导出后可以用 Word 或 WPS 打开，继续修改文字和版式。':'点“导出”后会打开打印窗口：目标打印机选“另存为 PDF”即可得到 PDF 文件。在“更多设置”里取消勾选“页眉和页脚”，可以去掉页面顶部的网址和日期。';
+    $('[data-ok]',m).textContent=o.fmt==='docx'?'导出 Word':'打印 / 存 PDF';
+  };
+  m.hidden=false; sync();
   m.onclick=e=>{
-    const b=e.target.closest('[data-pk] button'); if(b){ const k=b.parentElement.dataset.pk; o[k]=b.dataset.v; b.parentElement.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); return; }
+    const b=e.target.closest('[data-pk] button'); if(b){ const k=b.parentElement.dataset.pk; o[k]=b.dataset.v; b.parentElement.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); sync(); return; }
     if(e.target.closest('[data-x]')){ m.hidden=true; return; }
     if(e.target.closest('[data-ok]')){
-      o.title=$('#ptTitle').value.trim(); o.score=$('#ptScore').checked; o.info=$('#ptInfo').checked; o.space=$('#ptSpace').checked;
-      const {title:_t,...keep}=o; bank.settings.print=keep; persist(); m.hidden=true; doPrint(list,o);
+      o.title=$('#exTitle').value.trim(); o.subtitle=$('#exSub').value.trim(); o.meta=$('#exMeta').value.trim();
+      $$('[data-ck]',m).forEach(c=>o[c.dataset.ck]=c.checked);
+      const {title:_t,...keep}=o; bank.settings.print=keep; persist(); m.hidden=true;
+      if(o.fmt==='docx') exportDocx(list,o); else doPrint(list,o);
     }
   };
 }
 function printGroups(list){ const gs=[]; for(let g=0;g<5;g++){ const items=list.filter(x=>GROUP_OF[x.q.type]===g); if(items.length) gs.push({g,items}); } return gs; }
-function printHTML(list,o,ans){
-  const gs=printGroups(list); const total=list.reduce((a,x)=>a+entryScore(x.e,x.q),0); let num=0;
-  let h=`<div class="pt-head"><div class="pt-title">${esc(o.title||'试卷')}${ans?' · 参考答案':''}</div>`;
-  if(!ans&&(o.info||o.score)) h+=`<div class="pt-info">${o.info?'班级＿＿＿＿＿＿　姓名＿＿＿＿＿＿　学号＿＿＿＿＿＿':''}${o.info&&o.score?'　　':''}${o.score?`满分 ${fmt(total)} 分`:''}</div>`;
-  h+='</div><div class="pt-cols">';
-  gs.forEach(({g,items},gi)=>{
-    const scores=items.map(x=>entryScore(x.e,x.q)); const sum=scores.reduce((a,b)=>a+b,0); const same=scores.every(v=>v===scores[0]);
-    const info=o.score?`（本题共 ${items.length} 小题，${same&&items.length>1?`每小题 ${fmt(scores[0])} 分，`:''}共 ${fmt(sum)} 分）`:'';
-    h+=`<div class="pt-group">${CN_NUM[gi]}、${groupName(g,items)}${info}</div>`;
-    items.forEach((x,k)=>{ num++;
-      if(ans){ h+=`<div class="pt-ans rendered">${answerCopyHTML(x.q,num)}</div>`; return; }
-      const sc=o.score&&!same?`<span class="pt-sc">（${fmt(scores[k])} 分）</span>`:'';
-      const sp=o.space&&(x.q.type==='answer'||x.q.type==='exp');
-      h+=`<div class="pt-q ${sp?'long':''}" ${sp?'data-space':''}><span class="pt-no">${num}．</span><div class="pt-body rendered">${sc}${qBodyHTML(x.q)}</div></div>`;
+/* 答案行（HTML，每项一段） */
+function ansLines(q,ana,num){
+  const L=[]; let a='', used=false;
+  if(isChoice(q.type)) a=esc(q.key||'');
+  else if(q.type==='judge'){ const many=q.judges.length>1||hasContent(q.stem); a=q.judges.map((j,i)=>(many?CIRC[i]||'':'')+(j.key||'')).join('　'); }
+  else{ const b=blanksOf(q.stem); if(b.length) a=b.map((x,i)=>(b.length>1?CIRC[i]||'':'')+x).join('　'); else if(!q.subs.length&&hasContent(q.answer)){ a=inlineize(q.answer); used=true; } }
+  L.push(`${num?num+'．':''}【答案】${a}`);
+  if(!used&&!isChoice(q.type)&&q.type!=='judge'&&hasContent(q.answer)) L.push(inlineize(q.answer));
+  q.subs.forEach((s,i)=>{ const b=blanksOf(s.stem); const x=b.length?b.join('；'):(hasContent(s.answer)?inlineize(s.answer):''); const sa=ana&&hasContent(s.analysis); if(x||sa) L.push(`（${i+1}）${x}${sa?'　【解析】'+inlineize(s.analysis):''}`); });
+  if(ana&&hasContent(q.analysis)) L.push('【解析】'+inlineize(q.analysis));
+  if(ana&&hasContent(q.extra)) L.push('【补充】'+inlineize(q.extra));
+  return L;
+}
+function compactKey(q){ // 不带解析时，选择题和单个判断的答案排成一行行
+  if(isChoice(q.type)) return q.key||'';
+  if(q.type==='judge'&&q.judges.length===1&&!hasContent(q.stem)) return q.judges[0].key||'';
+  return null;
+}
+function paperModel(list,o){
+  const gs=printGroups(list); const total=list.reduce((a,x)=>a+entryScore(x.e,x.q),0); const B=[];
+  const std=o.style==='std';
+  if(o.ans!=='only'){
+    if(std&&o.secret) B.push({t:'secret',text:'绝密★启用前'});
+    B.push({t:'title',text:o.title||'试卷'});
+    if(o.subtitle) B.push({t:'subtitle',text:o.subtitle});
+    const meta=[o.meta,o.score?`满分：${fmt(total)} 分`:''].filter(Boolean).join('；');
+    if(meta) B.push({t:'meta',text:meta});
+    if(std){
+      if(!o.seal) B.push({t:'meta',text:SEAL_INFO.replace(/＿{9}/g,'＿＿＿＿＿＿')});
+      if(o.scoreTbl) B.push({t:'scoreTbl',n:gs.length});
+      if(o.notice) B.push({t:'notice',lines:NOTICE});
+    }else B.push({t:'meta',text:o.style==='test'?SEAL_INFO.replace(/＿{9}/g,'＿＿＿＿＿＿'):'班级：＿＿＿＿＿＿＿＿　姓名：＿＿＿＿＿＿＿＿'});
+    const split=std&&o.parts&&gs.some(x=>x.g<=2)&&gs.some(x=>x.g>=3);
+    let num=0, part=0;
+    gs.forEach(({g,items},gi)=>{
+      if(split){ const p=g<=2?1:2; if(p!==part){ part=p; B.push({t:'part',text:p===1?'第Ⅰ卷（选择题）':'第Ⅱ卷（非选择题）'}); } }
+      const scores=items.map(x=>entryScore(x.e,x.q)); const sum=scores.reduce((a,b)=>a+b,0); const same=scores.every(v=>v===scores[0]);
+      const info=o.score?`（本题共 ${items.length} 小题，${same&&items.length>1?`每小题 ${fmt(scores[0])} 分，`:''}共 ${fmt(sum)} 分）`:'';
+      B.push({t:'group',text:`${CN_NUM[gi]}、${groupName(g,items)}${info}`,grader:std&&o.grader});
+      items.forEach((x,k)=>{ num++; B.push({t:'q',num,q:x.q,sc:o.score&&!same?fmt(scores[k]):'',space:o.space&&o.ans!=='each'&&(x.q.type==='answer'||x.q.type==='exp'),ans:o.ans==='each',ana:o.analysis}); });
     });
-  });
+  }
+  if(o.ans==='end'||o.ans==='only'){
+    B.push({t:'ansStart'});
+    B.push({t:'title',text:o.ans==='only'?`${o.title||'试卷'}　参考答案`:'参考答案'});
+    let row=null, num=0;
+    gs.forEach(({items})=>items.forEach(x=>{ num++;
+      const k=o.analysis?null:compactKey(x.q);
+      if(k!==null){ if(!row){ row={t:'aRow',items:[]}; B.push(row); } row.items.push(`${num}．${k}`); return; }
+      row=null; B.push({t:'a',lines:ansLines(x.q,o.analysis,num)});
+    }));
+  }
+  return B;
+}
+
+/* ---- 打印（PDF） ---- */
+function paperPrintHTML(B,o){
+  let h='<div class="pt-cols">';
+  for(const b of B) switch(b.t){
+    case 'secret': h+=`<div class="pt-secret">${esc(b.text)}</div>`; break;
+    case 'title': h+=`<div class="pt-title">${esc(b.text)}</div>`; break;
+    case 'subtitle': h+=`<div class="pt-subtitle">${esc(b.text)}</div>`; break;
+    case 'meta': h+=`<div class="pt-meta">${esc(b.text)}</div>`; break;
+    case 'scoreTbl': h+=`<table class="pt-tbl pt-total"><tr><td>题号</td>${CN_NUM.slice(0,b.n).split('').map(c=>`<td>${c}</td>`).join('')}<td>总分</td></tr><tr><td>得分</td>${'<td></td>'.repeat(b.n+1)}</tr></table>`; break;
+    case 'notice': h+=`<div class="pt-notice">${b.lines.map(l=>`<div>${esc(l)}</div>`).join('')}</div>`; break;
+    case 'part': h+=`<div class="pt-part">${esc(b.text)}</div>`; break;
+    case 'group': h+=`<div class="pt-group">${b.grader?'<table class="pt-tbl pt-grader"><tr><td>评卷人</td><td>得分</td></tr><tr><td></td><td></td></tr></table>':''}<div>${esc(b.text)}</div></div>`; break;
+    case 'q': { const sp=b.space;
+      h+=`<div class="pt-q ${sp||b.ans?'long':''}" ${sp?'data-space':''}><span class="pt-no">${b.num}．</span><div class="pt-body rendered">${b.sc?`<span class="pt-sc">（${b.sc} 分）</span>`:''}${qBodyHTML(b.q)}${b.ans?`<div class="pt-qans">${ansLines(b.q,b.ana).map(l=>`<div>${l}</div>`).join('')}</div>`:''}</div></div>`; break; }
+    case 'ansStart': h+='</div><div class="pt-cols pt-break">'; break;
+    case 'aRow': h+=`<div class="pt-arow">${b.items.map(t=>`<span>${esc(t)}</span>`).join('')}</div>`; break;
+    case 'a': h+=`<div class="pt-ans rendered">${b.lines.map(l=>`<div>${l}</div>`).join('')}</div>`; break;
+  }
   return h+'</div>';
 }
 async function loadImages(root){
@@ -1365,17 +1470,245 @@ async function loadImages(root){
   }));
 }
 async function doPrint(list,o){
-  const P=$('#printArea');
-  let h=''; if(o.content!=='ans') h+=`<div class="pt">${printHTML(list,o,false)}</div>`;
-  if(o.content!=='stu') h+=`<div class="pt ${o.content==='both'?'pt-break':''}">${printHTML(list,o,true)}</div>`;
-  P.innerHTML=h; P.style.setProperty('--pt-size',o.size+'pt'); P.classList.toggle('a3',o.paper==='a3');
+  const P=$('#printArea'); const seal=o.style==='std'&&o.seal&&o.ans!=='only';
+  P.innerHTML=`<div class="pt ${seal?'sealed':''}">${seal?`<div class="pt-seal"><div class="pt-seal-in"><div>${SEAL_INFO}</div><div>${SEAL_LINE}</div></div></div>`:''}${paperPrintHTML(paperModel(list,o),o)}</div>`;
+  P.style.setProperty('--pt-size',o.size+'pt'); P.classList.toggle('a3',o.paper==='a3');
   $$('.pt-q[data-space]',P).forEach(q=>{ const subs=q.querySelectorAll('.sub'); if(subs.length) subs.forEach(s=>s.insertAdjacentHTML('afterend','<div class="pt-space"></div>')); else q.querySelector('.pt-body').insertAdjacentHTML('beforeend','<div class="pt-space"></div>'); });
-  $('#pageStyle').textContent=`@page{size:${o.paper==='a3'?'A3 landscape':'A4 portrait'};margin:${o.paper==='a3'?'14mm 16mm':'16mm 15mm'};@bottom-center{content:"第 " counter(page) " 页（共 " counter(pages) " 页）";font-size:9pt;color:#555}}`;
+  const lbl=o.ans==='none'?'试卷':o.ans==='only'?'答案':'';
+  $('#pageStyle').textContent=`@page{size:${o.paper==='a3'?'A3 landscape':'A4 portrait'};margin:16mm 16mm 16mm ${seal?'10mm':'16mm'};@bottom-center{content:"${lbl}第 " counter(page) " 页，共 " counter(pages) " 页";font-size:9pt;color:#333}}`;
   setStatus('准备打印…'); await loadImages(P);
+  $$('img',P).forEach(i=>{ if(i.naturalWidth) i.style.width=Math.round(i.naturalWidth/2)+'px'; }); // 与 Word 版一致：按一半像素排
   document.body.classList.add('printing');
   const done=()=>{ document.body.classList.remove('printing'); P.innerHTML=''; setStatus(dirty?'保存中…':'已保存'); window.removeEventListener('afterprint',done); };
   window.addEventListener('afterprint',done);
   setTimeout(()=>window.print(),50);
+}
+
+/* ---- Word（.docx）：自己拼 WordprocessingML，再打成 zip（不压缩） ---- */
+const CRC_T=(()=>{ const t=new Uint32Array(256); for(let n=0;n<256;n++){ let c=n; for(let k=0;k<8;k++) c=c&1?0xEDB88320^(c>>>1):c>>>1; t[n]=c>>>0; } return t; })();
+function crc32(u){ let c=-1; for(let i=0;i<u.length;i++) c=CRC_T[(c^u[i])&255]^(c>>>8); return (c^-1)>>>0; }
+function zipStore(files,type){
+  const enc=new TextEncoder(), out=[], cen=[]; let off=0, csize=0;
+  for(const f of files){
+    const nm=enc.encode(f.name), d=typeof f.data==='string'?enc.encode(f.data):f.data, crc=crc32(d);
+    const l=new DataView(new ArrayBuffer(30));
+    l.setUint32(0,0x04034b50,true); l.setUint16(4,20,true); l.setUint16(6,0x0800,true); l.setUint16(12,0x21,true);
+    l.setUint32(14,crc,true); l.setUint32(18,d.length,true); l.setUint32(22,d.length,true); l.setUint16(26,nm.length,true);
+    out.push(l,nm,d);
+    const c=new DataView(new ArrayBuffer(46));
+    c.setUint32(0,0x02014b50,true); c.setUint16(4,20,true); c.setUint16(6,20,true); c.setUint16(8,0x0800,true); c.setUint16(14,0x21,true);
+    c.setUint32(16,crc,true); c.setUint32(20,d.length,true); c.setUint32(24,d.length,true); c.setUint16(28,nm.length,true); c.setUint32(42,off,true);
+    cen.push(c,nm); off+=30+nm.length+d.length; csize+=46+nm.length;
+  }
+  const e=new DataView(new ArrayBuffer(22));
+  e.setUint32(0,0x06054b50,true); e.setUint16(8,files.length,true); e.setUint16(10,files.length,true); e.setUint32(12,csize,true); e.setUint32(16,off,true);
+  return new Blob([...out,...cen,e],{type});
+}
+const xe=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const MM=56.7; // 1 mm = 56.7 twip
+function dxRun(text,f={}){
+  text=String(text||'').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\ufffe\uffff]/g,''); if(!text) return '';
+  let p='';
+  if(f.font) p+=`<w:rFonts w:ascii="${f.font}" w:hAnsi="${f.font}" w:eastAsia="${f.font}"/>`;
+  if(f.b) p+='<w:b/><w:bCs/>'; if(f.i) p+='<w:i/><w:iCs/>';
+  if(f.sz) p+=`<w:sz w:val="${f.sz}"/><w:szCs w:val="${f.sz}"/>`;
+  if(f.u) p+='<w:u w:val="single"/>';
+  if(f.sub) p+='<w:vertAlign w:val="subscript"/>'; else if(f.sup) p+='<w:vertAlign w:val="superscript"/>';
+  if(f.em) p+='<w:em w:val="dot"/>';
+  return `<w:r>${p?`<w:rPr>${p}</w:rPr>`:''}<w:t xml:space="preserve">${xe(text)}</w:t></w:r>`;
+}
+function dxP(runs,p={}){
+  let pp='';
+  if(p.keepNext) pp+='<w:keepNext/>'; if(p.keepLines) pp+='<w:keepLines/>'; if(p.pageBreak) pp+='<w:pageBreakBefore/>';
+  if(p.tabs&&p.tabs.length) pp+=`<w:tabs>${p.tabs.map(t=>`<w:tab w:val="left" w:pos="${Math.round(t)}"/>`).join('')}</w:tabs>`;
+  if(p.before!=null||p.after!=null||p.line) pp+=`<w:spacing${p.before!=null?` w:before="${p.before}"`:''}${p.after!=null?` w:after="${p.after}"`:''}${p.line?` w:line="${p.line}" w:lineRule="auto"`:''}/>`;
+  if(p.ind) pp+=`<w:ind w:left="${p.ind}"/>`;
+  if(p.jc) pp+=`<w:jc w:val="${p.jc}"/>`;
+  if(p.sect) pp+=p.sect;
+  return `<w:p>${pp?`<w:pPr>${pp}</w:pPr>`:''}${runs||''}</w:p>`;
+}
+function paperBlanks(h,k){ // 填空的空白：带下划线的不换行空格，长度随答案字数
+  return (h||'').replace(/<u class="blank(?: miss)?">([\s\S]*?)<\/u>/g,(m,inner)=>'<u>'+'\u00a0'.repeat(Math.min(32,Math.max(10,Math.round(htmlToText(inner).length*k))))+'</u>');
+}
+function withSlotPaper(h){ h=h||''; return (h.includes(SLOT)?h:h+SLOT).replace(SLOT,'（　　）'); }
+class DocxWriter{
+  constructor(o){ this.o=o; this.sz=Math.round(+o.size*2); this.media=[]; this.imgs=new Map(); this.pid=1; }
+  async loadImages(names){
+    for(const n of names){ if(this.imgs.has(n)) continue;
+      try{ let b=await store.imageBlob(n); const bmp=await createImageBitmap(b); let ext=/png$/i.test(b.type)?'png':/jpe?g$/i.test(b.type)?'jpeg':'';
+        if(!ext){ const c=document.createElement('canvas'); c.width=bmp.width; c.height=bmp.height; const x=c.getContext('2d'); x.fillStyle='#fff'; x.fillRect(0,0,c.width,c.height); x.drawImage(bmp,0,0); b=await new Promise(r=>c.toBlob(r,'image/png')); ext='png'; }
+        const i=this.media.length+1; this.media.push({name:`media/image${i}.${ext}`,data:new Uint8Array(await b.arrayBuffer())});
+        this.imgs.set(n,{rid:'rIdImg'+i,w:bmp.width,h:bmp.height,file:`image${i}.${ext}`});
+      }catch(e){ this.imgs.set(n,null); }
+    }
+  }
+  img(n,maxTw){
+    const im=this.imgs.get(n); if(!im) return '';
+    let w=im.w/2*9525, h=im.h/2*9525; const mw=maxTw*635, mh=110*36000; // twip→EMU：635
+    const k=Math.min(1,mw/w,mh/h); w=Math.round(w*k); h=Math.round(h*k); const id=this.pid++;
+    return `<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${w}" cy="${h}"/><wp:docPr id="${id}" name="图片 ${id}"/><wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="${id}" name="${im.file}"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${im.rid}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${w}" cy="${h}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>`;
+  }
+  /* HTML → 段落/表格。prefix：加在第一段开头的 run（题号等）；inline：只要 run，不分段 */
+  blocks(html,{prefix='',p={},cw=this.cw,inline=false}={}){
+    const tpl=document.createElement('template'); tpl.innerHTML=html||'';
+    const out=[]; let runs=prefix, has=!!prefix, pre=prefix;
+    const flush=()=>{ if(inline) return; if(has){ runs=runs.replace(/(<w:r><w:br\/><\/w:r>)+$/,''); out.push(dxP(runs,runs.includes('\u00a0\u00a0')&&!p.jc?{...p,jc:'left'}:p)); } runs=''; has=false; pre=null; };
+    const walk=(node,f)=>{ for(const ch of node.childNodes){
+      if(ch.nodeType===3){ const t=ch.nodeValue.replace(/\u200b/g,'').replace(/[\r\n]+/g,''); if(t){ runs+=dxRun(t,f); has=true; } continue; }
+      if(ch.nodeType!==1) continue;
+      const tag=ch.tagName;
+      if(tag==='BR'){ runs+=inline?dxRun(' ',f):'<w:r><w:br/></w:r>'; has=true; continue; }
+      if(tag==='P'||tag==='DIV'){ if(!inline&&has&&runs!==pre) flush(); walk(ch,f); flush(); continue; }
+      if(tag==='TABLE'){ if(inline) continue; flush(); out.push(this.table(ch,cw)); continue; }
+      if(tag==='IMG'){ const r=this.img(ch.dataset.img,inline?cw:cw); if(!r) continue; if(inline){ runs+=r; has=true; continue; } flush(); out.push(dxP(r,{...p,keepLines:true})); continue; }
+      const g={...f};
+      if(tag==='B'||tag==='STRONG') g.b=1; else if(tag==='I'||tag==='EM') g.i=1; else if(tag==='U') g.u=1;
+      else if(tag==='SUB') g.sub=1; else if(tag==='SUP') g.sup=1; else if(tag==='SPAN'&&ch.classList.contains('em-dot')) g.em=1;
+      walk(ch,g);
+    } };
+    walk(tpl.content,{});
+    if(inline) return runs;
+    flush();
+    if(!out.length) out.push(dxP(prefix,p));
+    return out;
+  }
+  table(t,cw){
+    const rows=[...t.rows]; const occ=[]; const grid=[];
+    rows.forEach((tr,r)=>{ occ[r]=occ[r]||[]; let c=0; grid[r]=[];
+      for(const td of tr.cells){ while(occ[r][c]) { grid[r].push({cont:occ[r][c]}); c+=occ[r][c].span; }
+        const span=Math.max(1,+td.colSpan||1), rs=Math.max(1,+td.rowSpan||1); const cell={td,span,rs}; grid[r].push(cell);
+        for(let k=1;k<rs&&r+k<rows.length;k++){ occ[r+k]=occ[r+k]||[]; occ[r+k][c]={span}; }
+        c+=span; }
+      while(occ[r][c]){ grid[r].push({cont:occ[r][c]}); c+=occ[r][c].span; }
+      grid[r].n=c; });
+    const n=Math.max(1,...grid.map(g=>g.n)); const colW=Math.floor(Math.min(cw,n*2400)/n);
+    const bd='<w:tblBorders>'+['top','left','bottom','right','insideH','insideV'].map(s=>`<w:${s} w:val="single" w:sz="4" w:space="0" w:color="000000"/>`).join('')+'</w:tblBorders>';
+    let x=`<w:tbl><w:tblPr><w:tblW w:w="0" w:type="auto"/>${bd}<w:tblLayout w:type="autofit"/><w:tblCellMar><w:left w:w="80" w:type="dxa"/><w:right w:w="80" w:type="dxa"/></w:tblCellMar><w:tblLook w:val="0000"/></w:tblPr><w:tblGrid>${`<w:gridCol w:w="${colW}"/>`.repeat(n)}</w:tblGrid>`;
+    grid.forEach(cells=>{ x+='<w:tr>';
+      cells.forEach(c=>{ const span=c.cont?c.cont.span:c.span; const sp=span>1?`<w:gridSpan w:val="${span}"/>`:'';
+        if(c.cont){ x+=`<w:tc><w:tcPr><w:tcW w:w="${colW*span}" w:type="dxa"/>${sp}<w:vMerge/></w:tcPr><w:p/></w:tc>`; return; }
+        const body=this.blocks(c.td.innerHTML,{cw:colW*span-160,p:{line:240}}); if(/<\/w:tbl>$/.test(body[body.length-1])) body.push('<w:p/>');
+        x+=`<w:tc><w:tcPr><w:tcW w:w="${colW*span}" w:type="dxa"/>${sp}${c.rs>1?'<w:vMerge w:val="restart"/>':''}</w:tcPr>${body.join('')}</w:tc>`; });
+      x+='</w:tr>'; });
+    return x+'</w:tbl>';
+  }
+  simpleTable(rows,{colW,jc='center',bold=false}){
+    const bd='<w:tblBorders>'+['top','left','bottom','right','insideH','insideV'].map(s=>`<w:${s} w:val="single" w:sz="4" w:space="0" w:color="000000"/>`).join('')+'</w:tblBorders>';
+    let x=`<w:tbl><w:tblPr><w:tblW w:w="0" w:type="auto"/><w:jc w:val="${jc}"/>${bd}<w:tblLook w:val="0000"/></w:tblPr><w:tblGrid>${`<w:gridCol w:w="${colW}"/>`.repeat(rows[0].length)}</w:tblGrid>`;
+    rows.forEach(r=>{ x+='<w:tr><w:trPr><w:trHeight w:val="420"/></w:trPr>'+r.map(t=>`<w:tc><w:tcPr><w:tcW w:w="${colW}" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr>${dxP(dxRun(t,{b:bold}),{jc:'center',line:240})}</w:tc>`).join('')+'</w:tr>'; });
+    return x+'</w:tbl>';
+  }
+  graderTable(text){ // 左边“评卷人/得分”小表，右边是大题标题
+    const bd=s=>`<w:tcBorders>${['top','left','bottom','right'].map(k=>`<w:${k} w:val="${s}" w:sz="4" w:space="0" w:color="000000"/>`).join('')}</w:tcBorders>`;
+    const c=(w,t,b,extra='')=>`<w:tc><w:tcPr><w:tcW w:w="${w}" w:type="dxa"/>${extra}${bd(b)}<w:vAlign w:val="center"/></w:tcPr>${dxP(t,{jc:b==='nil'?'left':'center',line:240})}</w:tc>`;
+    const tw=this.cw-1800;
+    return `<w:tbl><w:tblPr><w:tblW w:w="${this.cw}" w:type="dxa"/><w:tblLayout w:type="fixed"/><w:tblLook w:val="0000"/></w:tblPr><w:tblGrid><w:gridCol w:w="900"/><w:gridCol w:w="900"/><w:gridCol w:w="${tw}"/></w:tblGrid>`+
+      `<w:tr><w:trPr><w:cantSplit/><w:trHeight w:val="400"/></w:trPr>${c(900,dxRun('评卷人',{sz:18}),'single')}${c(900,dxRun('得分',{sz:18}),'single')}${c(tw,dxRun(text,{b:1}),'nil','<w:vMerge w:val="restart"/>')}</w:tr>`+
+      `<w:tr><w:trPr><w:cantSplit/><w:trHeight w:val="400"/></w:trPr>${c(900,'','single')}${c(900,'','single')}${c(tw,'','nil','<w:vMerge/>')}</w:tr></w:tbl>`;
+  }
+  opts(opts){
+    const lay=optLayout(opts), n=lay==='o4'?4:lay==='o2'?2:1, cw=this.cw;
+    if(!opts.some(o=>/<img|<table/i.test(o))){
+      const step=cw/n, tabs=[...Array(n-1)].map((_,i)=>step*(i+1)), out=[];
+      for(let i=0;i<opts.length;i+=n){ let r=''; opts.slice(i,i+n).forEach((op,k)=>{ if(k) r+='<w:r><w:tab/></w:r>'; r+=dxRun(LETTERS[i+k]+'．')+this.blocks(paperBlanks(op,2.5),{inline:true}); }); out.push(dxP(r,{tabs})); }
+      return out;
+    }
+    const colW=Math.floor(cw/n); const none='<w:tblBorders>'+['top','left','bottom','right','insideH','insideV'].map(s=>`<w:${s} w:val="nil"/>`).join('')+'</w:tblBorders>';
+    let x=`<w:tbl><w:tblPr><w:tblW w:w="${colW*n}" w:type="dxa"/>${none}<w:tblLayout w:type="fixed"/><w:tblCellMar><w:left w:w="0" w:type="dxa"/><w:right w:w="100" w:type="dxa"/></w:tblCellMar><w:tblLook w:val="0000"/></w:tblPr><w:tblGrid>${`<w:gridCol w:w="${colW}"/>`.repeat(n)}</w:tblGrid>`;
+    for(let i=0;i<opts.length;i+=n){ x+='<w:tr><w:trPr><w:cantSplit/></w:trPr>';
+      for(let k=0;k<n;k++){ const op=opts[i+k]; const body=op==null?[dxP('')]:this.blocks(paperBlanks(op,2.5),{prefix:dxRun(LETTERS[i+k]+'．'),cw:colW-100});
+        if(/<\/w:tbl>$/.test(body[body.length-1])) body.push('<w:p/>');
+        x+=`<w:tc><w:tcPr><w:tcW w:w="${colW}" w:type="dxa"/></w:tcPr>${body.join('')}</w:tc>`; }
+      x+='</w:tr>'; }
+    return [x+'</w:tbl>'];
+  }
+  question(b){
+    const q=b.q, X=[], pre=dxRun(`${b.num}．`)+(b.sc?dxRun(`（${b.sc} 分）`):''), pb=h=>paperBlanks(h,2.5);
+    const blank=k=>{ for(let i=0;i<k;i++) X.push(dxP('')); };
+    if(q.type==='judge'){
+      const many=q.judges.length>1||hasContent(q.stem); let first=true;
+      if(hasContent(q.stem)){ X.push(...this.blocks(pb(q.stem),{prefix:pre})); first=false; }
+      q.judges.forEach((j,i)=>X.push(...this.blocks(withSlotPaper(pb(j.text)),{prefix:(first&&i===0?pre:'')+(many?dxRun(CIRC[i]||`（${i+1}）`):'')})));
+    }else{
+      const stem=hasSlot(q.type)?withSlotPaper(pb(q.stem)):pb(q.stem);
+      X.push(...this.blocks(stem,{prefix:pre}));
+      if(isChoice(q.type)&&q.options.length) X.push(...this.opts(q.options));
+      q.subs.forEach((s,i)=>{ X.push(...this.blocks(pb(s.stem),{prefix:dxRun(`（${i+1}）`)})); if(b.space) blank(4); });
+      if(b.space&&!q.subs.length) blank(6);
+    }
+    if(b.ans) ansLines(q,b.ana).forEach(l=>X.push(...this.blocks(l)));
+    return X;
+  }
+  body(B){
+    const o=this.o, X=[], sz=this.sz;
+    for(const b of B) switch(b.t){
+      case 'secret': X.push(dxP(dxRun(b.text,{b:1,font:'黑体'}),{after:60})); break;
+      case 'title': X.push(dxP(dxRun(b.text,{b:1,sz:Math.round(sz*1.45)}),{jc:'center',after:80,keepNext:true})); break;
+      case 'subtitle': X.push(dxP(dxRun(b.text,{b:1,sz:Math.round(sz*1.2)}),{jc:'center',after:60,keepNext:true})); break;
+      case 'meta': X.push(dxP(dxRun(b.text),{jc:'center',after:60})); break;
+      case 'scoreTbl': X.push(this.simpleTable([['题号',...CN_NUM.slice(0,b.n).split(''),'总分'],['得分',...Array(b.n+1).fill('')]],{colW:Math.min(900,Math.floor(this.cw/(b.n+2)))})); X.push(dxP('',{line:240})); break;
+      case 'notice': b.lines.forEach((l,i)=>X.push(dxP(dxRun(l,{b:i===0}),{after:0}))); break;
+      case 'part': X.push(dxP(dxRun(b.text,{b:1,sz:Math.round(sz*1.1)}),{jc:'center',before:120,after:60,keepNext:true})); break;
+      case 'group': if(b.grader){ X.push(this.graderTable(b.text)); X.push(dxP('',{line:240,keepNext:true})); }
+        else X.push(dxP(dxRun(b.text,{b:1}),{before:120,after:60,keepNext:true})); break;
+      case 'q': X.push(...this.question(b)); break;
+      case 'ansStart': if(X.length) X.push(dxP('',{sect:this.sect(false)})); this.inAns=true; break;
+      case 'aRow': { const n=5, step=this.cw/n, tabs=[...Array(n-1)].map((_,i)=>step*(i+1));
+        for(let i=0;i<b.items.length;i+=n) X.push(dxP(b.items.slice(i,i+n).map((t,k)=>(k?'<w:r><w:tab/></w:r>':'')+dxRun(t)).join(''),{tabs})); break; }
+      case 'a': b.lines.forEach(l=>X.push(...this.blocks(l))); break;
+    }
+    return X;
+  }
+  layout(){
+    const o=this.o, a3=o.paper==='a3', seal=o.style==='std'&&o.seal&&o.ans!=='only';
+    this.W=a3?23811:11906; this.H=16838; this.seal=seal;
+    this.mar={t:16*MM,b:16*MM,l:(seal?30:16)*MM,r:16*MM}; this.colSp=14*MM;
+    const full=this.W-this.mar.l-this.mar.r; this.cw=Math.floor(a3?(full-this.colSp)/2:full);
+  }
+  sect(ans){
+    const a3=this.o.paper==='a3', m=this.mar, R=Math.round;
+    return `<w:sectPr><w:headerReference w:type="default" r:id="${!ans&&this.seal?'rIdH1':'rIdH2'}"/><w:footerReference w:type="default" r:id="${ans?'rIdF2':'rIdF1'}"/><w:pgSz w:w="${this.W}" w:h="${this.H}"${a3?' w:orient="landscape"':''}/><w:pgMar w:top="${R(m.t)}" w:right="${R(m.r)}" w:bottom="${R(m.b)}" w:left="${R(ans?m.r:m.l)}" w:header="567" w:footer="567" w:gutter="0"/><w:pgNumType w:start="1"/>${a3?`<w:cols w:num="2" w:space="${R(this.colSp)}" w:sep="1"/>`:'<w:cols w:space="425"/>'}<w:docGrid w:linePitch="312"/></w:sectPr>`;
+  }
+  footer(lbl,total){ const f=i=>`<w:fldSimple w:instr=" ${i} "><w:r><w:t>1</w:t></w:r></w:fldSimple>`;
+    return `<w:ftr ${DX_NS}>${dxP(dxRun(`${lbl}第 `,{sz:18})+f('PAGE')+dxRun(' 页，共 ',{sz:18})+f(total)+dxRun(' 页',{sz:18}),{jc:'center'})}</w:ftr>`; }
+  sealHeader(){
+    const pt=v=>(v/20).toFixed(1); const top=20*MM, h=this.H-40*MM, x=7*MM, w=17*MM;
+    const line=t=>`<w:p><w:pPr><w:jc w:val="center"/></w:pPr>${dxRun(t,{sz:18})}</w:p>`;
+    return `<w:hdr ${DX_NS}><w:p><w:pPr><w:pStyle w:val="Header"/></w:pPr><w:r><w:pict><v:shapetype id="_x0000_t202" coordsize="21600,21600" o:spt="202" path="m,l,21600r21600,l21600,xe"><v:stroke joinstyle="miter"/><v:path gradientshapeok="t" o:connecttype="rect"/></v:shapetype><v:shape id="sealLine" o:spid="_x0000_s1025" type="#_x0000_t202" style="position:absolute;margin-left:${pt(x)}pt;margin-top:${pt(top)}pt;width:${pt(w)}pt;height:${pt(h)}pt;z-index:-251657216;mso-position-horizontal-relative:page;mso-position-vertical-relative:page" filled="f" stroked="f"><v:textbox style="layout-flow:vertical;mso-layout-flow-alt:bottom-to-top" inset="0,0,0,0"><w:txbxContent>${line(SEAL_INFO)}${line(SEAL_LINE)}</w:txbxContent></v:textbox></v:shape></w:pict></w:r></w:p></w:hdr>`;
+  }
+  async build(B){
+    this.layout();
+    const names=new Set(); for(const b of B){ const s=JSON.stringify(b.q||b.lines||''); for(const m of s.matchAll(/data-img=\\?"([^"\\]+)/g)) names.add(m[1]); }
+    await this.loadImages(names);
+    const body=this.body(B).join('');
+    const ansOnly=this.o.ans==='only';
+    const doc=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document ${DX_NS}><w:body>${body}${this.sect(ansOnly||!!this.inAns)}</w:body></w:document>`;
+    const sz=this.sz;
+    const styles=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:eastAsia="宋体" w:cs="Times New Roman"/><w:kern w:val="2"/><w:sz w:val="${sz}"/><w:szCs w:val="${sz}"/><w:lang w:val="en-US" w:eastAsia="zh-CN"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:widowControl w:val="0"/><w:spacing w:after="0" w:line="300" w:lineRule="auto"/><w:jc w:val="both"/></w:pPr></w:pPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/></w:style><w:style w:type="paragraph" w:styleId="Header"><w:name w:val="header"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:line="240" w:lineRule="auto"/></w:pPr></w:style><w:style w:type="table" w:default="1" w:styleId="TableNormal"><w:name w:val="Normal Table"/><w:tblPr><w:tblInd w:w="0" w:type="dxa"/><w:tblCellMar><w:top w:w="0" w:type="dxa"/><w:left w:w="108" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:right w:w="108" w:type="dxa"/></w:tblCellMar></w:tblPr></w:style></w:styles>`;
+    const settings=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:defaultTabStop w:val="420"/><w:characterSpacingControl w:val="compressPunctuation"/><w:compat><w:compatSetting w:name="compatibilityMode" w:uri="http://schemas.microsoft.com/office/word" w:val="15"/></w:compat></w:settings>`;
+    const ct=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/><Default Extension="jpeg" ContentType="image/jpeg"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/word/settings.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"/>${['header1','header2'].map(n=>`<Override PartName="/word/${n}.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/>`).join('')}${['footer1','footer2'].map(n=>`<Override PartName="/word/${n}.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/>`).join('')}</Types>`;
+    const R='http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+    const rels=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="${R}/officeDocument" Target="word/document.xml"/></Relationships>`;
+    const drels=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdS" Type="${R}/styles" Target="styles.xml"/><Relationship Id="rIdSet" Type="${R}/settings" Target="settings.xml"/><Relationship Id="rIdH1" Type="${R}/header" Target="header1.xml"/><Relationship Id="rIdH2" Type="${R}/header" Target="header2.xml"/><Relationship Id="rIdF1" Type="${R}/footer" Target="footer1.xml"/><Relationship Id="rIdF2" Type="${R}/footer" Target="footer2.xml"/>${[...this.imgs.values()].filter(Boolean).map(im=>`<Relationship Id="${im.rid}" Type="${R}/image" Target="media/${im.file}"/>`).join('')}</Relationships>`;
+    const X='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
+    const files=[{name:'[Content_Types].xml',data:ct},{name:'_rels/.rels',data:rels},{name:'word/document.xml',data:doc},{name:'word/_rels/document.xml.rels',data:drels},{name:'word/styles.xml',data:styles},{name:'word/settings.xml',data:settings},
+      {name:'word/header1.xml',data:X+(this.seal?this.sealHeader():`<w:hdr ${DX_NS}><w:p/></w:hdr>`)},{name:'word/header2.xml',data:X+`<w:hdr ${DX_NS}><w:p/></w:hdr>`},
+      {name:'word/footer1.xml',data:X+this.footer('试卷',this.inAns?'SECTIONPAGES':'NUMPAGES')},{name:'word/footer2.xml',data:X+this.footer('答案',ansOnly?'NUMPAGES':'SECTIONPAGES')},
+      ...this.media.map(m=>({name:'word/'+m.name,data:m.data}))];
+    return zipStore(files,'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+  }
+}
+const DX_NS='xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office"';
+async function exportDocx(list,o){
+  setStatus('正在生成 Word 文件…');
+  let blob; try{ blob=await new DocxWriter(o).build(paperModel(list,o)); }
+  catch(e){ setStatus(dirty?'保存中…':'已保存'); alert('生成 Word 文件失败：'+e.message); return; }
+  setStatus(dirty?'保存中…':'已保存');
+  const fname=`${(o.title||'试卷').replace(/[\\/:*?"<>|]/g,'')}${o.ans==='only'?'（答案）':o.ans==='each'?'（教师用卷）':''}.docx`;
+  if(window.showSaveFilePicker){
+    try{ const h=await showSaveFilePicker({suggestedName:fname,types:[{description:'Word 文档',accept:{'application/vnd.openxmlformats-officedocument.wordprocessingml.document':['.docx']}}]}); const w=await h.createWritable(); await w.write(blob); await w.close(); toast('已导出 Word 文件'); }
+    catch(e){ if(e.name!=='AbortError') alert('导出失败：'+e.message); }
+  }else{ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=fname; a.click(); }
 }
 
 /* ---------- 复制到 Word ---------- */
@@ -1876,7 +2209,7 @@ main.addEventListener('click',async e=>{
     case 'copyall': copyAll(false); break;
     case 'copyallans': copyAll(true); break;
     case 'clearbasket': { const ok=await choose('清空试题篮','确定移出试题篮里的全部题目吗？（题目本身不会被删除）',[{label:'取消',value:false},{label:'清空',value:true,danger:true}]); if(ok){ bank.basket=[]; bank.basketPaper=''; persist(); render(); } break; }
-    case 'print': printDialog(basketOrdered(),bank.papers.find(p=>p.id===bank.basketPaper)?.name||''); break;
+    case 'print': exportDialog(basketOrdered(),bank.papers.find(p=>p.id===bank.basketPaper)?.name||''); break;
     case 'papersaveas': { const v=await paperForm(null); if(!v) return; const p=normPaper({id:uid(),...v,entries:bank.basket.map(e=>clone(e))}); bank.papers.push(p); bank.basketPaper=p.id; persist(); render(); toast('已保存为试卷'); break; }
     case 'papersave': { const p=bank.papers.find(p=>p.id===bank.basketPaper); if(!p) return; p.entries=bank.basket.map(e=>normEntry(e)); p.updated=Date.now(); persist(); render(); toast('已保存到试卷「'+p.name+'」'); break; }
     case 'paperload': { const p=paperOf(a); if(!p) return;
@@ -1884,7 +2217,7 @@ main.addEventListener('click',async e=>{
       const miss=p.entries.filter(e=>!qIndex.has(e.qid)).length;
       bank.basket=p.entries.filter(e=>qIndex.has(e.qid)).map(e=>clone(e)); bank.basketPaper=p.id; persist(); go('basket');
       if(miss) toast(`有 ${miss} 道题已被删除，没有放进试题篮（可以到回收站恢复）`); break; }
-    case 'paperprint': { const p=paperOf(a); if(p) printDialog(orderedOf(p.entries.map(e=>clone(e))),p.name); break; }
+    case 'paperprint': { const p=paperOf(a); if(p) exportDialog(orderedOf(p.entries.map(e=>clone(e))),p.name); break; }
     case 'paperedit': { const p=paperOf(a); const v=await paperForm(p); if(!v) return; Object.assign(p,v,{updated:Date.now()}); persist(); render(); break; }
     case 'paperdel': { const p=paperOf(a); const ok=await choose('删除试卷',`确定删除试卷「${p.name}」吗？只删除这份试卷的记录，题目本身不受影响；这些题的“已用于”次数会相应减少。`,[{label:'取消',value:false},{label:'删除',value:true,danger:true}]); if(!ok) return;
       bank.papers=bank.papers.filter(x=>x!==p); if(bank.basketPaper===p.id) bank.basketPaper=''; persist(); render(); break; }
