@@ -207,7 +207,16 @@ input[type=checkbox]{accent-color:var(--accent)}
 /* ---------- 题目内容排版 ---------- */
 .rendered{font-size:15px;line-height:1.85}
 .rendered p,.rich p,.rendered div,.rich div{margin:0}
-.rendered img,.rich img{max-width:min(100%,520px);display:block;margin:6px 0;border-radius:4px}
+.rendered img,.rich img{max-width:min(100%,var(--img-max,420px));height:auto;display:block;margin:6px 0;border-radius:4px}
+.rendered img[width],.rich img[width]{max-width:100%}
+.rich img{cursor:pointer}
+.rich img.img-on,.rendered img.img-on{outline:2px solid var(--accent);outline-offset:2px}
+#imgPop{position:fixed;z-index:90;display:flex;align-items:center;gap:4px;background:var(--panel,#fff);border:1px solid var(--line);border-radius:10px;padding:5px 6px;box-shadow:0 6px 20px rgba(0,0,0,.16);font-size:13px}
+#imgPop button{border:1px solid var(--line);background:none;color:inherit;border-radius:7px;padding:2px 9px;font:inherit;cursor:pointer;line-height:22px}
+#imgPop button:hover{border-color:var(--accent);color:var(--accent)}
+#imgPop .ip-w{min-width:62px;text-align:center;color:var(--muted);font-variant-numeric:tabular-nums}
+#imgPop .ip-sep{width:1px;align-self:stretch;background:var(--line);margin:0 3px}
+#imgGrip{position:fixed;z-index:90;width:14px;height:14px;border-radius:3px;background:var(--accent);border:2px solid #fff;cursor:nwse-resize;box-shadow:0 1px 4px rgba(0,0,0,.3)}
 img[data-img]:not([src]){min-width:120px;min-height:60px;background:var(--line2)}
 img.missing{outline:1px dashed var(--danger)}
 .rendered table,.rich table{border-collapse:collapse;margin:6px 0}
@@ -323,7 +332,8 @@ details.panel[open]>summary:before{transform:rotate(90deg)}
 .pt{font-family:"Songti SC","STSong","SimSun","Times New Roman",serif;font-size:var(--pt-size);line-height:1.75;color:#000}
 #printArea{--pt-size:10.5pt}
 .pt .rendered{font-size:var(--pt-size);line-height:1.75}
-.pt .rendered img{max-width:100%;max-height:120mm}
+.pt .rendered img{max-width:min(100%,var(--img-max,420px));max-height:120mm;object-fit:contain}
+.pt .rendered img[width]{max-width:100%}
 .pt .rendered td,.pt .rendered th{border-color:#000}
 .pt .blank{text-decoration-color:#000}
 .pt mark{background:#fbeaa0}
@@ -532,7 +542,8 @@ pre{background:var(--soft);border:1px solid var(--line2);border-radius:10px;padd
 .cr-q{max-width:1100px;margin:0 auto}
 .cr-meta{display:flex;gap:8px;align-items:center;margin-bottom:14px;color:var(--muted);font-size:15px}
 .cr-q .rendered{font-size:clamp(20px,2.2vw,30px);line-height:1.8}
-.cr-q .rendered img{max-width:min(100%,900px)}
+.cr-q .rendered img{max-width:min(100%,calc(var(--img-max,420px)*1.6))}
+.cr-q .rendered img[width]{max-width:100%}
 .cr-ans{margin-top:22px;background:var(--soft);border:1px solid var(--line);border-radius:14px;padding:16px 22px}
 .cr-ans .ans-c{font-size:clamp(17px,1.7vw,24px)}
 .cr-ans .ans-lbl{width:110px;font-size:15px}
@@ -636,8 +647,8 @@ pre{background:var(--soft);border:1px solid var(--line2);border-radius:10px;padd
 const APP_VERSION=5; // 数据格式版本（v5：题目编号 no、讲题记录 taught、题集 sets、tag 别名 alias）
 /* 版本号：v1.x 是加入在线更新以前的版本，v2.x 起有在线更新（原 v3.1.0–v3.6.0 即 v2.1.0–v2.6.0）。
    v2.6.0 以前的更新程序只认下面注释里的旧编号（第一位数字加 1），由 tools/release.py 自动填写，不要手改。
-   兼容旧版更新：const PROGRAM_VERSION='3.8.5' */
-const PROGRAM_VERSION='2.8.5'; // 程序版本：重大更新改第一位，小功能改后两位；写好 更新记录.md，再运行 tools/release.py 更新 latest.json
+   兼容旧版更新：const PROGRAM_VERSION='3.9.0' */
+const PROGRAM_VERSION='2.9.0'; // 程序版本：重大更新改第一位，小功能改后两位；写好 更新记录.md，再运行 tools/release.py 更新 latest.json
 const TRASH_DAYS=30;
 /* ================= 教材目录（人教版 2019） ================= */
 const CATALOG_RAW = [
@@ -781,6 +792,7 @@ function cleanNode(node){
     [...ch.attributes].forEach(a=>{
       const n=a.name;
       if(tag==='IMG'&&n==='data-img') return;
+      if(tag==='IMG'&&n==='width'){ const w=parseInt(a.value,10); if(w>0){ ch.setAttribute('width',String(clampImgW(w))); return; } }
       if((tag==='TD'||tag==='TH')&&(n==='colspan'||n==='rowspan')) return;
       if(tag==='A'&&n==='href'&&/^https?:\/\//i.test(a.value)) return;
       ch.removeAttribute(n);
@@ -792,6 +804,11 @@ function cleanNode(node){
     if(tag==='SPAN'&&!ch.hasAttribute('class')) unwrap(ch);
   });
 }
+/* 图片显示宽度：width 属性（像素，按图保存）；没有时用设置里的默认最大宽度 */
+const IMG_MIN=40, IMG_MAXW=1000, IMG_DEF=420;
+function clampImgW(w){ return Math.max(IMG_MIN,Math.min(IMG_MAXW,Math.round(w))); }
+function imgMaxPx(){ const v=+(bank?.settings?.imgMax); return v>=160&&v<=1000?v:IMG_DEF; }
+function imgDispW(img,natW){ const w=parseInt(img.getAttribute('width'),10); return w>0?w:Math.min(natW||imgMaxPx(),imgMaxPx()); }
 function cleanField(html){ const s=sanitize(html); return hasContent(s)?s:''; }
 /* 选择题/判断题题干末尾的（　）占位 */
 const TRAIL_PAREN=/[（(][\s　]*[A-H✓×√✔✗]*[\s　]*[）)][\s　]*$/;
@@ -887,7 +904,7 @@ function normQ(q){
 function normalizeBank(d){
   const settings=clone(DEFAULT_SETTINGS);
   if(d.settings){ Object.assign(settings.coef,d.settings.coef||{}); Object.assign(settings.score,d.settings.score||{}); if(d.settings.grade) settings.grade=d.settings.grade; if(d.settings.print&&typeof d.settings.print==='object') settings.print=d.settings.print; if(d.settings.autoUpdate===false) settings.autoUpdate=false;
-    for(const k of ['theme','mode','achv','achvEv','achvOff','daily','dailyLog','basketTarget','lastClass']) if(d.settings[k]!==undefined) settings[k]=d.settings[k];
+    for(const k of ['theme','mode','imgMax','achv','achvEv','achvOff','daily','dailyLog','basketTarget','lastClass']) if(d.settings[k]!==undefined) settings[k]=d.settings[k];
     if(Array.isArray(d.settings.rosters)) settings.rosters=d.settings.rosters.filter(r=>r&&r.id&&Array.isArray(r.names)).map(r=>({id:r.id,name:String(r.name||'未命名班级'),names:r.names.map(String).filter(Boolean)})); }
   bank={version:APP_VERSION,settings,topics:[],tags:[],questions:[],notes:[],basket:[],papers:[],basketPaper:'',exams:[],trash:[],sets:[],nextNo:0};
   bank.nextNo=Number.isInteger(d.nextNo)?d.nextNo:0;
@@ -1413,6 +1430,7 @@ function cardHTML(q){
 }
 function hydrateImages(root){
   root.querySelectorAll('img[data-img]').forEach(async img=>{
+    const w=parseInt(img.getAttribute('width'),10); if(w>0&&img.closest('.cr-q')) img.style.width=Math.round(w*1.6)+'px';
     if(img.getAttribute('src')) return;
     const n=img.dataset.img;
     try{ let u=imgCache.get(n); if(!u){ u=URL.createObjectURL(await store.imageBlob(n)); imgCache.set(n,u); } img.src=u; }
@@ -2012,9 +2030,9 @@ class DocxWriter{
       }catch(e){ this.imgs.set(n,null); }
     }
   }
-  img(n,maxTw){
+  img(n,maxTw,wpx){
     const im=this.imgs.get(n); if(!im) return '';
-    let w=im.w/2*9525, h=im.h/2*9525; const mw=maxTw*635, mh=110*36000; // twip→EMU：635
+    const dw=wpx>0?wpx:Math.min(im.w,imgMaxPx()); let w=dw*9525, h=dw*im.h/im.w*9525; const mw=maxTw*635, mh=110*36000; // twip→EMU：635
     const k=Math.min(1,mw/w,mh/h); w=Math.round(w*k); h=Math.round(h*k); const id=this.pid++;
     return `<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${w}" cy="${h}"/><wp:docPr id="${id}" name="图片 ${id}"/><wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="${id}" name="${im.file}"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${im.rid}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${w}" cy="${h}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>`;
   }
@@ -2030,7 +2048,7 @@ class DocxWriter{
       if(tag==='BR'){ runs+=inline?dxRun(' ',f):'<w:r><w:br/></w:r>'; has=true; continue; }
       if(tag==='P'||tag==='DIV'){ if(!inline&&has&&runs!==pre) flush(); walk(ch,f); flush(); continue; }
       if(tag==='TABLE'){ if(inline) continue; flush(); out.push(this.table(ch,cw)); continue; }
-      if(tag==='IMG'){ const r=this.img(ch.dataset.img,inline?cw:cw); if(!r) continue; if(inline){ runs+=r; has=true; continue; } flush(); out.push(dxP(r,{...p,keepLines:true})); continue; }
+      if(tag==='IMG'){ const r=this.img(ch.dataset.img,cw,parseInt(ch.getAttribute('width'),10)); if(!r) continue; if(inline){ runs+=r; has=true; continue; } flush(); out.push(dxP(r,{...p,keepLines:true})); continue; }
       const g={...f};
       if(tag==='B'||tag==='STRONG') g.b=1; else if(tag==='I'||tag==='EM') g.i=1; else if(tag==='U') g.u=1;
       else if(tag==='SUB') g.sub=1; else if(tag==='SUP') g.sup=1; else if(tag==='SPAN'&&ch.classList.contains('em-dot')) g.em=1;
@@ -2217,7 +2235,7 @@ function answerCopyHTML(q,num){
 async function copyHTML(html){
   const d=document.createElement('div'); d.innerHTML=html;
   for(const img of d.querySelectorAll('img[data-img]')){
-    try{ const b=await store.imageBlob(img.dataset.img); const bmp=await createImageBitmap(b); img.src=await blobToDataURL(b); img.width=Math.min(Math.round(bmp.width/2),420); img.removeAttribute('data-img'); }
+    try{ const b=await store.imageBlob(img.dataset.img); const bmp=await createImageBitmap(b); img.src=await blobToDataURL(b); img.width=imgDispW(img,bmp.width); img.removeAttribute('data-img'); }
     catch(e){ img.remove(); }
   }
   d.querySelectorAll('table').forEach(t=>{ t.setAttribute('border','1'); t.setAttribute('cellspacing','0'); t.style.borderCollapse='collapse'; });
@@ -2755,7 +2773,7 @@ async function cardBlob(q,o){
   host.innerHTML=shareCardHTML(q,o); document.body.appendChild(host);
   try{
     const el=host.firstElementChild;
-    for(const img of [...el.querySelectorAll('img[data-img]')]){ try{ img.src=await blobToDataURL(await store.imageBlob(img.dataset.img)); await img.decode(); if(img.naturalWidth) img.style.width=Math.min(620,Math.round(img.naturalWidth/1.6))+'px'; }catch(e){ img.remove(); } }
+    for(const img of [...el.querySelectorAll('img[data-img]')]){ try{ img.src=await blobToDataURL(await store.imageBlob(img.dataset.img)); await img.decode(); if(img.naturalWidth) img.style.width=Math.min(620,imgDispW(img,img.naturalWidth))+'px'; }catch(e){ img.remove(); } }
     const W=720, H=Math.ceil(el.getBoundingClientRect().height)+6;
     const xml=new XMLSerializer().serializeToString(el);
     const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}"><foreignObject x="0" y="0" width="${W}" height="${H}">${xml}</foreignObject></svg>`;
@@ -3086,11 +3104,15 @@ function applyTheme(){
   if(s.theme&&s.theme!=='clay') r.dataset.theme=s.theme; else delete r.dataset.theme;
   const dark=s.mode==='dark'||(s.mode==='auto'&&darkMQ?.matches);
   if(dark) r.dataset.mode='dark'; else delete r.dataset.mode;
+  r.style.setProperty('--img-max',imgMaxPx()+'px');
 }
 darkMQ?.addEventListener?.('change',()=>{ if(bank?.settings.mode==='auto') applyTheme(); });
 function themePanelHTML(){
   const s=bank.settings;
-  return `<div class="panel"><div class="panel-title">外观 <span class="hint">只改变界面颜色，导出的试卷不受影响</span></div>
+  return `<div class="panel"><div class="panel-title">题目图片 <span class="hint">没有单独调过大小的图片，最宽显示多少；导出的试卷、打印、分享卡片也按这个宽度</span></div>
+    <div class="form-row"><span>默认宽度</span><div class="seg small">${[[300,'小'],[420,'中'],[560,'大'],[1000,'整行']].map(([v,l])=>`<button data-act="setimgmax" data-v="${v}" class="${imgMaxPx()===v?'on':''}">${l}</button>`).join('')}</div></div>
+    <p class="hint" style="margin:8px 0 0">单张图片：录题时或在题目列表里点一下图片，用出现的“小 / 中 / 大 / 整行”按钮或＋－调整，也可以拖图片右下角的小方块；点“默认”恢复为这里的宽度。</p></div>
+  <div class="panel"><div class="panel-title">外观 <span class="hint">只改变界面颜色，导出的试卷不受影响</span></div>
     <div class="swatches">${THEMES.map(([k,l,c])=>`<div class="swatch ${(s.theme||'clay')===k?'on':''}" data-act="settheme" data-v="${k}"><i style="background:linear-gradient(135deg,${c} 0 55%,${c}33 55%)"></i>${l}</div>`).join('')}</div>
     <div class="form-row" style="margin-top:10px"><span>明暗</span><div class="seg small">${[['light','浅色'],['dark','深色'],['auto','跟随系统']].map(([v,l])=>`<button data-act="setmode" data-v="${v}" class="${(s.mode||'light')===v?'on':''}">${l}</button>`).join('')}</div></div></div>`;
 }
@@ -3271,6 +3293,7 @@ main.addEventListener('click',async e=>{
     case 'recapq': { e.preventDefault(); ui.sf=freshFilter(); ui.sf.keyword='#'+a.dataset.no; go('search'); break; }
     case 'settheme': bank.settings.theme=a.dataset.v; applyTheme(); persist(); render(); break;
     case 'setmode': bank.settings.mode=a.dataset.v; applyTheme(); persist(); render(); break;
+    case 'setimgmax': bank.settings.imgMax=+a.dataset.v; applyTheme(); persist(); render(); break;
     case 'rosteradd': { const v=await rosterDialog(null); if(!v) return; bank.settings.rosters=[...(bank.settings.rosters||[]),{id:uid(),...v}]; persist(); render(); toast(`已添加 ${v.name}（${v.names.length} 人）`); break; }
     case 'rosteredit': { const r=bank.settings.rosters.find(x=>x.id===a.dataset.id); const v=await rosterDialog(r); if(!v) return; Object.assign(r,v); persist(); render(); break; }
     case 'rosterdel': { const r=bank.settings.rosters.find(x=>x.id===a.dataset.id); const ok=await choose('删除班级名单',`确定删除「${r.name}」的名单吗？已经记下的讲题记录不受影响。`,[{label:'取消',value:false},{label:'删除',value:true,danger:true}]); if(!ok) return; bank.settings.rosters=bank.settings.rosters.filter(x=>x!==r); persist(); render(); break; }
@@ -3571,6 +3594,90 @@ const imgTag=n=>`<img data-img="${n}" src="${imgCache.get(n)}">`;
 async function insertImages(ed,files){
   for(const f of files){ try{ const n=await storeImage(f); insertHTMLAt(ed,imgTag(n)); }catch(e){ alert('图片无法读取：'+(f.name||'')+'\n'+e.message); } }
 }
+/* ---------- 调整图片大小：点图片后出现工具条，或拖右下角的小方块 ---------- */
+const IMG_PRESETS=[['小',200],['中',320],['大',480]];
+let imgSel=null; // {img, kind:'edit'|'view'}
+function imgEditable(img){
+  if(!img||!img.matches?.('img[data-img]')||img.closest('#printArea,.cr-q,.card-prev')) return null;
+  if(img.closest('.rich[contenteditable="true"]')) return 'edit';
+  if(img.closest('.rendered')&&img.closest('[data-qid],.exq[data-eitem]')&&!img.closest('#editor')) return 'view';
+  return null;
+}
+function imgPopHide(){ if(imgSel) imgSel.img.classList.remove('img-on'); imgSel=null; $('#imgPop')?.remove(); $('#imgGrip')?.remove(); }
+function imgCurW(img){ const w=parseInt(img.getAttribute('width'),10); return w>0?w:Math.round(img.getBoundingClientRect().width)||imgMaxPx(); }
+function imgPopPlace(){
+  if(!imgSel||!imgSel.img.isConnected){ imgPopHide(); return; }
+  const r=imgSel.img.getBoundingClientRect(), pop=$('#imgPop'), grip=$('#imgGrip');
+  if(r.bottom<0||r.top>innerHeight){ pop.style.visibility=grip.style.visibility='hidden'; return; }
+  pop.style.visibility=grip.style.visibility='';
+  const ph=pop.offsetHeight, pw=pop.offsetWidth;
+  const box=(imgSel.img.closest('.rich,.rendered')||imgSel.img.parentElement).getBoundingClientRect();
+  if(box.right-r.right>=pw+16){ pop.style.top=Math.max(6,Math.min(innerHeight-ph-6,r.top))+'px'; pop.style.left=(r.right+12)+'px'; } // 图片右边有空位就放右边，不挡文字
+  else{ let top=r.top-ph-8; if(top<6) top=Math.min(innerHeight-ph-6,r.bottom+8);
+    pop.style.top=top+'px'; pop.style.left=Math.max(6,Math.min(innerWidth-pw-6,r.left))+'px'; }
+  grip.style.left=(r.right-8)+'px'; grip.style.top=(r.bottom-8)+'px';
+  const w=parseInt(imgSel.img.getAttribute('width'),10);
+  pop.querySelector('.ip-w').textContent=w>0?`宽 ${w}`:'默认大小';
+}
+function imgPopShow(img,kind){
+  imgPopHide(); imgSel={img,kind}; img.classList.add('img-on');
+  const pop=document.createElement('div'); pop.id='imgPop';
+  pop.innerHTML=`<button data-iw="-" title="缩小一点">－</button><span class="ip-w"></span><button data-iw="+" title="放大一点">＋</button><span class="ip-sep"></span>${IMG_PRESETS.map(([l,v])=>`<button data-iw="${v}">${l}</button>`).join('')}<button data-iw="full" title="和正文一样宽">整行</button><button data-iw="0" title="恢复为设置里的默认最大宽度">默认</button>`;
+  const grip=document.createElement('div'); grip.id='imgGrip'; grip.title='拖动调整大小';
+  document.body.append(pop,grip); imgPopPlace();
+}
+function imgItemOf(img){
+  const c=img.closest('[data-qid]'); if(c) return qById(c.dataset.qid);
+  const e=img.closest('.exq[data-eitem]'); if(e){ for(const ex of bank.exams){ const it=ex.items.find(i=>i.id===e.dataset.eitem); if(it) return it; } }
+  return null;
+}
+function imgSetInHTML(html,name,w){
+  if(typeof html!=='string'||!html.includes(name)) return html;
+  const t=document.createElement('template'); t.innerHTML=html;
+  t.content.querySelectorAll('img[data-img]').forEach(i=>{ if(i.dataset.img===name){ if(w) i.setAttribute('width',w); else i.removeAttribute('width'); } });
+  return t.innerHTML;
+}
+function imgSetInObj(o,name,w){
+  if(Array.isArray(o)) return o.map(x=>typeof x==='string'?imgSetInHTML(x,name,w):(x&&typeof x==='object'?(imgSetInObj(x,name,w),x):x));
+  for(const k of Object.keys(o)){ const v=o[k]; if(typeof v==='string') o[k]=imgSetInHTML(v,name,w); else if(v&&typeof v==='object') o[k]=imgSetInObj(v,name,w); }
+  return o;
+}
+function imgApply(w,commit=true){
+  if(!imgSel) return; const {img,kind}=imgSel;
+  w=w?clampImgW(w):0;
+  if(kind==='edit'){
+    if(w) img.setAttribute('width',w); else img.removeAttribute('width');
+    if(commit){ const ed=img.closest('.rich'); ed?.dispatchEvent(new Event('input',{bubbles:true})); if(editorMode==='q') syncDraft(); }
+  }else{
+    const name=img.dataset.img;
+    document.querySelectorAll(`#main img[data-img="${CSS.escape(name)}"]`).forEach(i=>{ if(w) i.setAttribute('width',w); else i.removeAttribute('width'); });
+    if(commit){ const it=imgItemOf(img); if(it){ imgSetInObj(it,name,w); if(it.updated) it.updated=Date.now(); persist(); } }
+  }
+  requestAnimationFrame(imgPopPlace);
+}
+document.addEventListener('click',e=>{
+  const b=e.target.closest?.('#imgPop button');
+  if(b){ e.preventDefault(); if(!imgSel) return; const v=b.dataset.iw, cur=imgCurW(imgSel.img);
+    if(v==='-') imgApply(Math.min(cur-10,cur*0.85)); else if(v==='+') imgApply(Math.max(cur+10,cur*1.15));
+    else if(v==='full'){ const box=imgSel.img.parentElement; imgApply(Math.min(IMG_MAXW,box?Math.floor(box.getBoundingClientRect().width):IMG_MAXW)); }
+    else imgApply(+v); return; }
+  if(e.target.closest?.('#imgPop,#imgGrip')) return;
+  const img=e.target.closest?.('img'); const kind=img&&imgEditable(img);
+  if(kind){ if(imgSel?.img===img) return; imgPopShow(img,kind); return; }
+  if(imgSel) imgPopHide();
+},true);
+document.addEventListener('mousedown',e=>{
+  if(e.target.closest?.('#imgPop')){ e.preventDefault(); return; }
+  if(e.target.id!=='imgGrip'||!imgSel) return; e.preventDefault();
+  const img=imgSel.img, x0=e.clientX, w0=img.getBoundingClientRect().width;
+  const mv=ev=>imgApply(w0+ev.clientX-x0,false);
+  const up=ev=>{ removeEventListener('mousemove',mv); removeEventListener('mouseup',up); imgApply(w0+ev.clientX-x0,true); };
+  addEventListener('mousemove',mv); addEventListener('mouseup',up);
+},true);
+document.addEventListener('keydown',e=>{ if(imgSel&&e.key==='Escape'){ imgPopHide(); e.stopPropagation(); } else if(imgSel&&imgSel.kind==='edit'&&!imgSel.img.isConnected) imgPopHide(); },true);
+addEventListener('scroll',()=>{ if(imgSel) imgPopPlace(); },true);
+addEventListener('resize',()=>{ if(imgSel) imgPopPlace(); });
+new MutationObserver(()=>{ if(imgSel&&!imgSel.img.isConnected) imgPopHide(); }).observe(document.body,{childList:true,subtree:true});
 ED.addEventListener('paste',async e=>{
   const ed=e.target.closest?.('.rich'); if(!ed) return; const cd=e.clipboardData; if(!cd) return;
   const files=[...cd.files].filter(f=>f.type.startsWith('image/')); const html=cd.getData('text/html'), text=cd.getData('text/plain');
