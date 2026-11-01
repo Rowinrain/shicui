@@ -29,12 +29,14 @@
 - `tags[]`：`{id, sec, name}`，每节独立的 tag 库；题目借用其他节的 tag 即算跨节。
 - `notes[]`：`{id, sec, title, body}`；`topics[]`：综合专题；`basket[]`：试题篮 `{qid, score, subScores?}`。
 - `papers[]`：保存的试卷 `{id, name, date, entries}`（entries 同 basket），题目“已用于几份试卷”由它统计；`basketPaper` 为试题篮当前对应的试卷 id。
-- `trash[]`：回收站 `{kind: 'q'|'n', deleted, item}`，打开时清除超过 30 天的；清理图片时也算作在用。
+- `exams[]`：整卷 `{id, name, grade, date, note, items}`，`items` 按原卷顺序，元素是大题标题 `{id, kind: 'head', text}` 或题目（字段同 questions，另有 `qid`＝收进题库后题库里那道题的 id）。整卷里的题不在 `questions` 里，不参与搜索、目录计数和查重；“收进题库”是复制一份。
+- `trash[]`：回收站 `{kind: 'q'|'n'|'e', deleted, item}`，打开时清除超过 30 天的；清理图片时也算作在用。
 - `settings.print`：上次的导出试卷选项（版式、答案位置、纸张等，旧版的 `content` 会自动换算成 `ans`）。
 
 ## 导入与更新文件
 
 - `format: "qbank-import"`：新增题目/笔记/专题（section 可写节编号、节名或 `专题:名称`；tag 可写名字或 `{section, name}`）。
+- `format: "qbank-exam"`：新建一份整卷 `{name, grade, date, items}`，items 里写 `{head: "一、单项选择题"}`（或直接写字符串）表示大题标题，其余同 qbank-import 的题目（section、tags 可不写）。在整卷页面里也可以把 qbank-import 文件的题按顺序导入整卷。
 - `format: "qbank-update"`：按 `id` 更新已有题目（tags、addTags、tagsPending、primary、level、grade、review），用于重新打 tag。
 - 设置页“导出纯文字版”（`format: "qbank-text"`）可得到不含图片的题目文字，用来整理 tag 后生成 qbank-update 文件。
 
