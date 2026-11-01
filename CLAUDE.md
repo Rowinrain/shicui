@@ -45,6 +45,7 @@
 1. 改 拾萃.html 时把 `PROGRAM_VERSION` 改大（只改了说明文档可以不改）；数据格式变了另外提升 `APP_VERSION`。
 2. 在 `更新记录.md` 顶部加 `## v新版本号` 和更新内容（用户会在更新提示里看到）。
 3. 运行 `python3 tools/release.py` 重新生成 latest.json，一起提交。GitHub Actions 会用 `--check` 检查三者是否一致；拾萃.html 改了但 latest.json 没重新生成，用户更新时 sha256 会校验失败。
+4. 顺带更新 `README.md`（使用说明，面向第一次下载的人：下载、用 Chrome 打开、选数据文件夹、主要功能、更新）。在线更新只替换 拾萃.html，不会改动用户本地的说明，这是有意的。
 
 ## 测试
 
