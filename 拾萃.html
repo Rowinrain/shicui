@@ -434,11 +434,12 @@ pre{background:#fbf8f2;border:1px solid var(--line2);border-radius:10px;padding:
   <header>
     <div class="brand" data-nav="home" title="回到工作台">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#c96442" stroke-width="1.8" stroke-linecap="round"><path d="M7 3c0 6 10 6 10 12s-10 3-10 6"/><path d="M17 3c0 6-10 6-10 12s10 3 10 6"/><path d="M9 6h6M9 18h6M10.5 12h3"/></svg>
-      拾萃<span class="hint" style="margin-left:2px">高中生物好题本</span>
+      拾萃
     </div>
     <div class="top-search"><input id="topSearch" placeholder="全库搜索：输入关键词后按回车"></div>
     <span class="sp"></span>
     <span id="saveStatus"></span>
+    <button class="btn ghost" data-nav="home">工作台</button>
     <button class="btn ghost" data-nav="papers">试卷</button>
     <button class="btn ghost" data-nav="basket">试题篮<span class="count" id="basketCount">0</span></button>
     <button class="btn ghost" data-nav="settings">设置</button>
@@ -458,7 +459,7 @@ pre{background:#fbf8f2;border:1px solid var(--line2);border-radius:10px;padding:
 <script>
 'use strict';
 const APP_VERSION=3; // 数据格式版本
-const PROGRAM_VERSION='3.3.0'; // 程序版本：发布新版时改大，写好 更新记录.md，再运行 tools/release.py 更新 latest.json
+const PROGRAM_VERSION='3.3.1'; // 程序版本：发布新版时改大，写好 更新记录.md，再运行 tools/release.py 更新 latest.json
 const TRASH_DAYS=30;
 /* ================= 教材目录（人教版 2019） ================= */
 const CATALOG_RAW = [
@@ -877,6 +878,7 @@ function renderTrash(){
 /* ================= 渲染：总入口 ================= */
 function render(resetScroll){
   renderGradeSwitch(); renderTree(); updateBasketCount();
+  document.querySelectorAll('header .btn[data-nav]').forEach(b=>b.classList.toggle('on',b.dataset.nav===ui.view));
   const fn={home:renderHome,section:renderSection,search:renderSearch,basket:renderBasket,settings:renderSettings,trash:renderTrash,papers:renderPapers}[ui.view];
   const m=$('#main'); const st=m.scrollTop; fn(); m.scrollTop=resetScroll?0:st;
 }
@@ -976,7 +978,7 @@ function renderHome(){
     <li>选择题、判断题题干末尾的（　）会自动加上，不用自己输入。填空题：选中答案文字，点工具栏的“挖空”。</li>
     <li>录题时可以标记自己曾经误选的选项、判错的判断、答错的空：它们在答案区用蓝色标出，难度默认归为“较难”，还能用“曾做错”筛选出来。题干里不会显示答案。</li>
     <li>勾选“选入试题篮”，在试题篮里预排版：拖动 ⋮⋮ 调整顺序，点击题目查看答案解析，“复制”后可以直接粘贴到 Word。</li>
-    <li>点左上角“拾萃”随时回到工作台。</li>
+    <li>点右上角的“工作台”（或左上角“拾萃”）随时回到工作台。</li>
    </ol></details>`);
 }
 
