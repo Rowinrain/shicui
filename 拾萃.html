@@ -437,6 +437,8 @@ pre{background:#fbf8f2;border:1px solid var(--line2);border-radius:10px;padding:
 .upd-pct{font-size:12.5px;color:var(--muted);margin-bottom:4px}
 .upd-why{margin:6px 0 0;padding-left:18px}
 .upd-ok{font-size:13.5px;color:var(--accent-d)}
+#updNotice{position:fixed;right:20px;bottom:20px;z-index:90;max-width:340px;background:var(--panel,#fff);border:1px solid var(--warn-b);border-radius:12px;padding:12px 14px;font-size:13.5px;box-shadow:0 8px 24px rgba(0,0,0,.15)}
+#updNotice .btn-row{margin-top:8px}
 .upd-new{background:var(--warn-w);border:1px solid var(--warn-b);border-radius:10px;padding:8px 12px;font-size:13.5px}
 .upd-notes{white-space:pre-wrap;margin-top:6px;color:#4a473f}
 .upd-log{font-size:12px;color:var(--muted);line-height:1.7;margin-top:4px;font-family:ui-monospace,Menlo,Consolas,monospace}
@@ -469,6 +471,7 @@ pre{background:#fbf8f2;border:1px solid var(--line2);border-radius:10px;padding:
 <div id="editor" hidden></div>
 <div id="modal" hidden></div>
 <div id="toast" hidden></div>
+<div id="updNotice" hidden></div>
 <datalist id="srcList"></datalist>
 <div id="printArea"></div>
 <style id="pageStyle"></style>
@@ -476,7 +479,7 @@ pre{background:#fbf8f2;border:1px solid var(--line2);border-radius:10px;padding:
 <script>
 'use strict';
 const APP_VERSION=4; // 数据格式版本
-const PROGRAM_VERSION='3.5.0'; // 程序版本：发布新版时改大，写好 更新记录.md，再运行 tools/release.py 更新 latest.json
+const PROGRAM_VERSION='3.6.0'; // 程序版本：发布新版时改大，写好 更新记录.md，再运行 tools/release.py 更新 latest.json
 const TRASH_DAYS=30;
 /* ================= 教材目录（人教版 2019） ================= */
 const CATALOG_RAW = [
@@ -706,7 +709,7 @@ function normQ(q){
 }
 function normalizeBank(d){
   const settings=clone(DEFAULT_SETTINGS);
-  if(d.settings){ Object.assign(settings.coef,d.settings.coef||{}); Object.assign(settings.score,d.settings.score||{}); if(d.settings.grade) settings.grade=d.settings.grade; if(d.settings.print&&typeof d.settings.print==='object') settings.print=d.settings.print; }
+  if(d.settings){ Object.assign(settings.coef,d.settings.coef||{}); Object.assign(settings.score,d.settings.score||{}); if(d.settings.grade) settings.grade=d.settings.grade; if(d.settings.print&&typeof d.settings.print==='object') settings.print=d.settings.print; if(d.settings.autoUpdate===false) settings.autoUpdate=false; }
   bank={version:APP_VERSION,settings,topics:[],tags:[],questions:[],notes:[],basket:[],papers:[],basketPaper:'',exams:[],trash:[]};
   bank.topics=(d.topics||[]).filter(t=>t&&t.id&&t.name);
   applyTopics();
@@ -863,6 +866,7 @@ async function openStore(demo){
   let updated=null; try{ updated=sessionStorage.getItem('shicui-updated'); sessionStorage.removeItem('shicui-updated'); }catch(e){}
   if(upgraded) toast('已升级到新版数据格式（升级前已自动备份）');
   else if(updated) toast(`已更新到 v${PROGRAM_VERSION}`);
+  scheduleAutoUpdateCheck();
 }
 async function dailyBackup(){
   const name=`bank-${today()}.json`;
@@ -2084,11 +2088,45 @@ async function checkUpdate(){
     const latest=await fetchLatest(t=>lines.push(t));
     const via=latest.via!=='GitHub'?`<div class="hint">（GitHub 直连失败，已通过 ${esc(latest.via)} 获取）</div>`:'';
     if(cmpVer(latest.info.version,PROGRAM_VERSION)<=0){ res.innerHTML=`<div class="upd-ok">已经是最新版本（v${esc(PROGRAM_VERSION)}）。</div>${via}`; return; }
-    res.innerHTML=`<div class="upd-new">发现新版本 <b>v${esc(latest.info.version)}</b>${latest.info.date?`（${esc(latest.info.date)}）`:''}，当前是 v${esc(PROGRAM_VERSION)}。
-      ${latest.info.notes?`<div class="upd-notes">${esc(latest.info.notes)}</div>`:''}${via}</div>
-      <div class="btn-row" style="margin-top:8px"><button class="btn primary" id="updGo">下载并更新</button></div>`;
-    $('#updGo').onclick=()=>runOnlineUpdate(latest);
+    showUpdateFound(latest,via);
   }catch(e){ res.innerHTML=errorHTML(e.step?e:stepError('获取更新信息',e.message)); }
+}
+function showUpdateFound(latest,via){
+  const res=$('#updRes'); if(!res) return;
+  res.innerHTML=`<div class="upd-new">发现新版本 <b>v${esc(latest.info.version)}</b>${latest.info.date?`（${esc(latest.info.date)}）`:''}，当前是 v${esc(PROGRAM_VERSION)}。
+      ${latest.info.notes?`<div class="upd-notes">${esc(latest.info.notes)}</div>`:''}${via||''}</div>
+      <div class="btn-row" style="margin-top:8px"><button class="btn primary" id="updGo">下载并更新</button></div>`;
+  $('#updGo').onclick=()=>runOnlineUpdate(latest);
+}
+/* 自动检查新版本：打开程序几秒后查一次，之后每 6 小时查一次；只读取 latest.json，不下载程序。
+   设置里可以关掉；“以后再说”的版本不再提示，有更新的版本时才再提示。 */
+const AUTO_UPD_DELAY=5000, AUTO_UPD_EVERY=6*3600e3;
+let autoUpdTimer=null, autoUpdFound=null;
+function autoUpdateOn(){ return bank&&bank.settings.autoUpdate!==false; }
+function scheduleAutoUpdateCheck(){
+  clearTimeout(autoUpdTimer); autoUpdTimer=null;
+  const q=new URLSearchParams(location.search);
+  if(q.has('demo')&&!q.has('autoupdate')) return; // 演示模式默认不联网
+  if(!autoUpdateOn()) return;
+  autoUpdTimer=setTimeout(async function tick(){
+    await autoCheckUpdate();
+    if(autoUpdateOn()) autoUpdTimer=setTimeout(tick,AUTO_UPD_EVERY);
+  },AUTO_UPD_DELAY);
+}
+async function autoCheckUpdate(){
+  if(updBusy||!autoUpdateOn()) return;
+  let latest; try{ latest=await fetchLatest(()=>{}); }catch(e){ console.warn('自动检查更新失败：',e.message); return; }
+  if(cmpVer(latest.info.version,PROGRAM_VERSION)<=0) return;
+  autoUpdFound=latest;
+  let skip=null; try{ skip=localStorage.getItem('shicui-upd-skip'); }catch(e){}
+  if(skip&&cmpVer(latest.info.version,skip)<=0) return;
+  const box=$('#updNotice');
+  box.innerHTML=`<div>发现新版本 <b>v${esc(latest.info.version)}</b>，当前是 v${esc(PROGRAM_VERSION)}。</div>
+    ${latest.info.notes?`<details style="margin-top:4px"><summary class="hint">更新内容</summary><div class="upd-notes">${esc(latest.info.notes)}</div></details>`:''}
+    <div class="btn-row"><button class="btn primary small" id="updNoticeGo">去更新</button><button class="btn ghost small" id="updNoticeLater">以后再说</button></div>`;
+  box.hidden=false;
+  $('#updNoticeGo').onclick=()=>{ box.hidden=true; go('settings'); showUpdateFound(latest,''); $('#updRes')?.scrollIntoView({block:'center'}); };
+  $('#updNoticeLater').onclick=()=>{ box.hidden=true; try{ localStorage.setItem('shicui-upd-skip',latest.info.version); }catch(e){} };
 }
 async function runOnlineUpdate(latest){
   if(updBusy) return;
@@ -2118,6 +2156,7 @@ function updatePanelHTML(){
   return `<div class="panel"><div class="panel-title">程序更新 <span class="hint">更新只替换 拾萃.html，数据文件夹不受影响</span></div>
     <p style="margin:0 0 6px">当前版本：<b>v${PROGRAM_VERSION}</b>${path?`<span class="hint">　程序文件：${esc(path)}</span>`:''}</p>
     <div class="btn-row"><button class="btn primary" data-act="updcheck">检查更新</button><button class="btn" data-act="updfile">选择新版 拾萃.html 更新</button><button class="btn ghost small" data-act="updpick">重新选择程序文件</button></div>
+    <label class="hint" style="display:flex;align-items:center;gap:6px;margin-top:8px;color:inherit"><input type="checkbox" id="autoUpd" ${autoUpdateOn()?'checked':''}> 打开拾萃时自动检查新版本（有新版时在右下角提示，只有点“下载并更新”才会下载）</label>
     <div id="updRes" style="margin-top:8px"></div><div id="updProgress" hidden></div>
     <p class="hint" style="margin:8px 0 0">第一次更新时需要选中正在使用的 拾萃.html。旧版程序会备份到数据文件夹的 backups 里。</p></div>`;
 }
@@ -2442,6 +2481,7 @@ main.addEventListener('change',e=>{
   if(t.matches('[data-bscore],[data-bsub]')){
     const id=t.closest('[data-qid]').dataset.qid; const en=bank.basket.find(x=>x.qid===id); const v=Math.max(0,parseFloat(t.value)||0);
     if(t.hasAttribute('data-bscore')) en.score=v; else en.subScores[+t.dataset.bsub]=v; persist(); setTimeout(()=>render(),0); return; }
+  if(t.id==='autoUpd'){ bank.settings.autoUpdate=t.checked; persist(); toast(t.checked?'已开启自动检查新版本':'已关闭自动检查新版本'); if(t.checked) scheduleAutoUpdateCheck(); else { clearTimeout(autoUpdTimer); autoUpdTimer=null; $('#updNotice').hidden=true; } return; }
   if(t.dataset.set){
     const [grp,k]=t.dataset.set.split('.'); let v=parseFloat(t.value); if(isNaN(v)||v<0) v=0; if(grp==='coef') v=Math.min(1,v);
     bank.settings[grp][k]=v; t.value=v; persist(); toast('设置已保存'); }
