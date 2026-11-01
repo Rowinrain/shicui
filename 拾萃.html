@@ -1375,7 +1375,7 @@ function exportDialog(list,title){
     $('.ex-sub',m).hidden=o.style==='std';
     $('.ex-ana',m).hidden=o.ans==='none';
     $('.ex-anahint',m).textContent={end:'答案另起一页，放在试卷最后。',each:'每道题后面紧跟答案，适合做教师用卷。',only:'只导出答案，适合单独发给学生对答案。'}[o.ans]||'';
-    $('.ex-hint',m).textContent=o.fmt==='docx'?'导出后可以用 Word 或 WPS 打开，继续修改文字和版式。':'点“导出”后会打开打印窗口：目标打印机选“另存为 PDF”即可得到 PDF 文件。在“更多设置”里取消勾选“页眉和页脚”，可以去掉页面顶部的网址和日期。';
+    $('.ex-hint',m).textContent=o.fmt==='docx'?'导出后可以用 Word 或 WPS 打开，继续修改文字和版式。':'点“导出”后会打开打印窗口：目标打印机选“另存为 PDF”即可得到 PDF 文件。';
     $('[data-ok]',m).textContent=o.fmt==='docx'?'导出 Word':'打印 / 存 PDF';
   };
   m.hidden=false; sync();
@@ -1479,7 +1479,7 @@ async function doPrint(list,o){
   P.style.setProperty('--pt-size',o.size+'pt'); P.classList.toggle('a3',o.paper==='a3');
   $$('.pt-q[data-space]',P).forEach(q=>{ const subs=q.querySelectorAll('.sub'); if(subs.length) subs.forEach(s=>s.insertAdjacentHTML('afterend','<div class="pt-space"></div>')); else q.querySelector('.pt-body').insertAdjacentHTML('beforeend','<div class="pt-space"></div>'); });
   const lbl=o.ans==='none'?'试卷':o.ans==='only'?'答案':'';
-  $('#pageStyle').textContent=`@page{size:${o.paper==='a3'?'A3 landscape':'A4 portrait'};margin:16mm 16mm 16mm ${seal?'10mm':'16mm'};@bottom-center{content:"${lbl}第 " counter(page) " 页，共 " counter(pages) " 页";font-size:9pt;color:#333}}`;
+  $('#pageStyle').textContent=`@page{size:${o.paper==='a3'?'A3 landscape':'A4 portrait'};margin:16mm 16mm 16mm ${seal?'10mm':'16mm'};@top-center{content:""}@bottom-center{content:"${lbl}第 " counter(page) " 页，共 " counter(pages) " 页";font-size:9pt;color:#333}}`;
   setStatus('准备打印…'); await loadImages(P);
   $$('img',P).forEach(i=>{ if(i.naturalWidth) i.style.width=Math.round(i.naturalWidth/2)+'px'; }); // 与 Word 版一致：按一半像素排
   document.body.classList.add('printing');
